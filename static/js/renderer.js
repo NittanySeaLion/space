@@ -285,8 +285,96 @@ function generateSurface() {
   document.getElementById('hsrc').textContent = 'PROCEDURAL REGOLITH \u00b7 MARE TRANQUILLITATIS';
 }
 
-// No-op for compatibility with main.js loadPhotos() call
-function loadPhotos() { generateSurface(); }
+// ── Load Apollo foreground photos ────────────────────────────────────────────
+const PHOTO_SRCS = [
+  '/static/photos/as11-40-5961.jpg',   // wide landscape, LM distant, clean regolith
+  '/static/photos/as11-40-5931.jpg',   // mid-ground regolith, LM behind
+  '/static/photos/as11-40-5886.jpg',   // flag scene, good surface texture
+];
+let photoImgs = [];
+let photosReady = false;
+// Offscreen canvas for cropped+normalized photo strip
+let photoStrip = null;
+
+function loadPhotos() {
+  generateSurface();
+  let loaded = 0;
+  PHOTO_SRCS.forEach((src, i) => {
+    const img = new Image();
+    img.onload = () => {
+      photoImgs[i] = img;
+      loaded++;
+      if (loaded === PHOTO_SRCS.length) buildPhotoStrip();
+    };
+    img.onerror = () => { loaded++; if (loaded === PHOTO_SRCS.length) buildPhotoStrip(); };
+    img.src = src;
+  });
+}
+
+function buildPhotoStrip() {
+  const valid = photoImgs.filter(Boolean);
+  if (!valid.length) return;
+
+  // Build a wide strip from the bottom crop of each photo (regolith only)
+  const stripH = 300;       // output strip height
+  const perW = 800;         // output width per photo
+  const totalW = valid.length * perW;
+
+  photoStrip = document.createElement('canvas');
+  photoStrip.width = totalW;
+  photoStrip.height = stripH;
+  const pc = photoStrip.getContext('2d');
+
+  valid.forEach((img, i) => {
+    // Crop bottom 35% of each photo (pure regolith ground)
+    const cropFrac = 0.35;
+    const srcY = Math.round(img.naturalHeight * (1 - cropFrac));
+    const srcH = img.naturalHeight - srcY;
+    const srcX = 0, srcW = img.naturalWidth;
+
+    pc.drawImage(img, srcX, srcY, srcW, srcH, i * perW, 0, perW, stripH);
+
+    // Feather left/right edges for seamless tiling between photos
+    if (i > 0) {
+      const feather = 60;
+      const grad = pc.createLinearGradient(i * perW - feather, 0, i * perW + feather, 0);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(0.5, 'rgba(0,0,0,0.6)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      // Don't cover — blend by drawing slight overlap
+    }
+  });
+
+  // Normalize brightness — boost to full daylight level
+  const id = pc.getImageData(0, 0, totalW, stripH);
+  const d = id.data;
+  // Find average brightness
+  let sum = 0, count = 0;
+  for (let j = 0; j < d.length; j += 16) {
+    sum += d[j] * 0.299 + d[j+1] * 0.587 + d[j+2] * 0.114;
+    count++;
+  }
+  const avgBright = sum / count;
+  // Target ~160 brightness (well-lit lunar surface)
+  const scale = Math.min(2.0, 160 / Math.max(1, avgBright));
+  for (let j = 0; j < d.length; j += 4) {
+    d[j]   = Math.min(255, d[j] * scale);
+    d[j+1] = Math.min(255, d[j+1] * scale);
+    d[j+2] = Math.min(255, d[j+2] * scale);
+  }
+  pc.putImageData(id, 0, 0);
+
+  // Top fade-to-transparent (blend into procedural terrain above)
+  const topFade = pc.createLinearGradient(0, 0, 0, stripH * 0.45);
+  topFade.addColorStop(0, 'rgba(0,0,0,1)');
+  topFade.addColorStop(1, 'rgba(0,0,0,0)');
+  pc.globalCompositeOperation = 'destination-out';
+  pc.fillStyle = topFade;
+  pc.fillRect(0, 0, totalW, stripH * 0.45);
+  pc.globalCompositeOperation = 'source-over';
+
+  photosReady = true;
+}
 
 // ── Draw lunar surface horizon ──────────────────────────────────────────────
 function drawHorizon() {
@@ -337,29 +425,40 @@ function drawHorizon() {
     }
   }
 
-  // Dynamic sun/shadow overlay
-  cx.fillStyle = `rgba(0,0,0,${darkOverlay.toFixed(3)})`;
+  // Surface always shown at max brightness for visibility
+  // Light overlay only for subtle depth (no full darkening)
+  const surfaceDim = Math.max(0, darkOverlay * 0.15);  // at most 15% dim
+  cx.fillStyle = `rgba(0,0,0,${surfaceDim.toFixed(3)})`;
   cx.fillRect(0, groundY, W, H - groundY);
 
-  // Earthshine blue tint during lunar night
-  if (earthshineBright > 0.01) {
-    cx.fillStyle = `rgba(40,80,160,${(earthshineBright * 0.5).toFixed(3)})`;
-    cx.fillRect(0, groundY, W, H - groundY);
-  }
+  // ── Photo foreground overlay ────────────────────────────────────────────
+  if (photosReady && photoStrip) {
+    const photoH = Math.round(surfH * 0.55);  // photos fill bottom 55% of surface area
+    const photoY = H - photoH;
 
-  // Warm tint at low sun angles (sunrise/sunset)
-  if (sunAlt > -2 && sunAlt < 12) {
-    const golden = Math.max(0, 1 - abs(sunAlt - 3) / 10) * 0.15;
-    if (golden > 0.005) {
-      cx.fillStyle = `rgba(200,140,50,${golden.toFixed(3)})`;
-      cx.fillRect(0, groundY, W, H - groundY);
+    // Map viewAz to photo strip offset (parallax scroll)
+    const stripW = photoStrip.width;
+    const photoScale = W / (stripW * 0.4);  // show ~40% of strip at a time
+    const drawW = stripW * photoScale;
+    const scrollX = -(viewAz / 360) * drawW * 0.6;
+
+    cx.save();
+    cx.beginPath(); cx.rect(0, photoY, W, photoH); cx.clip();
+
+    // Draw with wrapping
+    for (const shift of [0, drawW, -drawW]) {
+      const dx = (scrollX + shift) % drawW;
+      const drawX = ((dx % drawW) + drawW) % drawW - drawW * 0.15;
+      cx.drawImage(photoStrip, 0, 0, stripW, photoStrip.height,
+                   drawX, photoY, drawW, photoH);
     }
+    cx.restore();
   }
 
-  // Bottom vignette
-  const bot = cx.createLinearGradient(0, groundY + surfH * 0.45, 0, H);
+  // Gentle bottom vignette (much lighter than before)
+  const bot = cx.createLinearGradient(0, H - surfH * 0.15, 0, H);
   bot.addColorStop(0, 'rgba(0,0,0,0)');
-  bot.addColorStop(1, 'rgba(0,0,0,0.88)');
+  bot.addColorStop(1, 'rgba(0,0,0,0.35)');
   cx.fillStyle = bot;
   cx.fillRect(0, groundY, W, H - groundY);
 

@@ -141,10 +141,16 @@ function earthFromMoon(jd) {
 }
 
 // ── Lunar Local Sidereal Time ───────────────────────────────────────────────
+// Moon is tidally locked: its prime meridian (lon=0) faces Earth.
+// "LST" at selenographic longitude λ = RA_of_Earth_from_Moon + λ
+// = moonRA + 180° + λ  (Earth is opposite the Moon in RA)
+// This rotates ~13°/day (Moon's orbital period) instead of 360°/day.
+let _moonRACache = { jd: 0, ra: 0 };
 function lunarLST(jd, lonDeg) {
-  const T = (jd - 2451545.0) / 36525.0;
-  const gmst = n360(280.46061837 + 360.98564736629 * (jd - 2451545.0) + T*T*0.000387933 - T*T*T/38710000.0);
-  return n360(gmst + lonDeg);
+  if (abs(jd - _moonRACache.jd) > 0.0001) {  // recalc every ~8 sec
+    _moonRACache = { jd, ra: moonPos(jd).ra };
+  }
+  return n360(_moonRACache.ra + 180 + lonDeg);
 }
 
 // ── Alt/Az from selenographic coords ────────────────────────────────────────
