@@ -247,20 +247,8 @@ function drawHorizon() {
     const imgW = panoramaImg.naturalWidth;
     const imgH = panoramaImg.naturalHeight;
 
-    // Scale panorama height to fill ground zone; width follows aspect ratio
-    const drawH = surfH;
-    const drawW = drawH * (imgW / imgH);
-
-    // Scroll horizontally with azimuth
-    const scrollFrac = (viewAz % 360) / 360;
-    const scrollX = -scrollFrac * drawW;
-
-    // Draw with wrapping
-    for (let shift = -1; shift <= 2; shift++) {
-      const dx = scrollX + shift * drawW;
-      if (dx + drawW < 0 || dx > W) continue;
-      cx.drawImage(panoramaImg, 0, 0, imgW, imgH, dx, groundY, drawW, drawH);
-    }
+    // Stretch panorama to fill full screen width
+    cx.drawImage(panoramaImg, 0, 0, imgW, imgH, 0, groundY, W, surfH);
   } else {
     // Fallback gradient
     const grad = cx.createLinearGradient(0, groundY, 0, H);
