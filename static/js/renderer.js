@@ -29,12 +29,13 @@ function rg(x, y, r0, r1, stops) {
 // Pixels per degree (uniform angular scale, no edge distortion)
 function pxPerDeg() { return W / (HFOV * R2D); }
 
-// Compute viewAlt so Earth (~67°) and horizon (~0°) both fit in sky zone
+// Compute viewAlt so Earth (~67°) is visible, with horizon if possible
 function computeViewAlt() {
   const skyH = H * (1 - GROUND_FRAC);
   const vfovSky = skyH / pxPerDeg();  // vertical FOV in degrees
-  // Center between horizon (0°) and Earth (~67°), biased to keep Earth in frame
-  return Math.min(55, Math.max(25, Math.min(67, vfovSky) * 0.52));
+  const earthAlt = 67;  // Earth's approximate altitude from Tranquility Base
+  // Place Earth 25% from top of sky zone so it's clearly visible
+  return earthAlt - vfovSky * 0.25;
 }
 
 // ── Projection (equirectangular, mapped to sky zone) ────────────────────────
