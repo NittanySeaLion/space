@@ -87,6 +87,12 @@ function render(ts) {
     const ext = Math.min(1, Math.max(0, (aa.alt + 0.2) / 0.8));
     const baseA = Math.min(1, Math.max(0, (7.0 - s.mag) / 6.0)) * ext;
     drawStar(x, y, Math.max(.4, 3.2 - s.mag * .52), bv2rgb(s.bv), Math.min(1, baseA * 1.2));
+    // Star name labels for bright named stars
+    if (showLabels && s.name && s.mag < 2.5) {
+      cx.font = '8px Courier New';
+      cx.fillStyle = `rgba(170,195,230,${Math.min(.55, baseA * .5)})`;
+      cx.fillText(s.name, x + 6, y - 5);
+    }
   }
 
   // Bodies
@@ -103,10 +109,7 @@ function render(ts) {
   document.getElementById('ht-houston').textContent = houstonTime(now);
   document.getElementById('ht-utc').textContent = `${now.getUTCFullYear()}-${z(now.getUTCMonth()+1)}-${z(now.getUTCDate())} ${z(now.getUTCHours())}:${z(now.getUTCMinutes())}:${z(now.getUTCSeconds())} UTC`;
 
-  if (viewAz !== lastViewAz) {
-    document.getElementById('h-lun').textContent = `FACING  ${compassDir(viewAz)}  (${viewAz.toFixed(0)}\u00b0)`;
-    lastViewAz = viewAz;
-  }
+  document.getElementById('h-lun').textContent = `FACING  ${compassDir(viewAz)}  (${viewAz.toFixed(0)}\u00b0)`;
 
   updateEventsPanel(jd);
 

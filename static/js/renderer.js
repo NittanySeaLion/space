@@ -239,6 +239,18 @@ function drawHorizon() {
   const groundY = Math.round(H * (1 - GROUND_FRAC));
   const surfH = H - groundY;
 
+  // Compute sun lighting for surface
+  const jdNow = toJD(new Date());
+  const sunAlt = sunAltTranquility(jdNow);
+  const pf = moonPhaseFrac(jdNow);
+  const eIllum = earthIllumination(pf);
+
+  let sunBright = 0;
+  if (sunAlt > 5)       sunBright = 1.0;
+  else if (sunAlt > -2) sunBright = (sunAlt + 2) / 7;
+  const earthshineBright = (1 - sunBright) * eIllum * 0.12;
+  const darkOverlay = 1.0 - Math.max(0.08, sunBright * 0.85 + earthshineBright);
+
   // Clip to ground zone
   cx.save();
   cx.beginPath(); cx.rect(0, groundY, W, surfH); cx.clip();
@@ -246,11 +258,8 @@ function drawHorizon() {
   if (panoramaReady && panoramaImg) {
     const imgW = panoramaImg.naturalWidth;
     const imgH = panoramaImg.naturalHeight;
-
-    // Stretch panorama to fill full screen width
     cx.drawImage(panoramaImg, 0, 0, imgW, imgH, 0, groundY, W, surfH);
   } else {
-    // Fallback gradient
     const grad = cx.createLinearGradient(0, groundY, 0, H);
     grad.addColorStop(0, '#4a453b');
     grad.addColorStop(0.4, '#3a362e');
@@ -259,10 +268,31 @@ function drawHorizon() {
     cx.fillRect(0, groundY, W, surfH);
   }
 
+  // Lunar night darkening
+  if (darkOverlay > 0.01) {
+    cx.fillStyle = `rgba(0,0,0,${darkOverlay.toFixed(3)})`;
+    cx.fillRect(0, groundY, W, surfH);
+  }
+
+  // Earthshine blue tint during lunar night
+  if (earthshineBright > 0.01) {
+    cx.fillStyle = `rgba(40,80,160,${(earthshineBright * 0.4).toFixed(3)})`;
+    cx.fillRect(0, groundY, W, surfH);
+  }
+
+  // Golden hour tint at low sun angles
+  if (sunAlt > -2 && sunAlt < 12) {
+    const golden = Math.max(0, 1 - abs(sunAlt - 3) / 10) * 0.12;
+    if (golden > 0.005) {
+      cx.fillStyle = `rgba(200,140,50,${golden.toFixed(3)})`;
+      cx.fillRect(0, groundY, W, surfH);
+    }
+  }
+
   // Bottom vignette
   const bot = cx.createLinearGradient(0, H - surfH * 0.25, 0, H);
   bot.addColorStop(0, 'rgba(0,0,0,0)');
-  bot.addColorStop(1, 'rgba(0,0,0,0.35)');
+  bot.addColorStop(1, 'rgba(0,0,0,0.3)');
   cx.fillStyle = bot;
   cx.fillRect(0, groundY, W, surfH);
 
