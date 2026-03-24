@@ -93,12 +93,7 @@ function drawEarth(x, y, alt, az, phase) {
   // Earth is ~1.9° angular diameter from Moon — exaggerate for visual impact
   const r = Math.max(24, SR * (2.0 / 90) * 9.0);
 
-  // Soft atmosphere glow
-  const atmoR = r * 1.5;
-  const atmo = rg(x, y, r*.6, atmoR, [
-    [0,'rgba(60,130,255,0)'],[.4,'rgba(50,110,240,.12)'],[.8,'rgba(30,70,180,.04)'],[1,'rgba(10,40,140,0)']
-  ]);
-  cx.beginPath(); cx.arc(x, y, atmoR, 0, TAU); cx.fillStyle = atmo; cx.fill();
+  // No halo — Earth rendered clean
 
   cx.save();
   cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.clip();
