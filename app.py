@@ -1,0 +1,150 @@
+"""
+Lunar Sky — Sea of Tranquility
+Flask app serving the visualization + cached NASA Horizons ephemeris data.
+"""
+import os
+import time
+import threading
+import logging
+from flask import Flask, render_template, jsonify
+import requests
+
+app = Flask(__name__)
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+log = logging.getLogger(__name__)
+
+# ── Observer: Apollo 11 landing site, Sea of Tranquility ─────────────────────
+OBS_LAT = 0.6741    # selenographic latitude (degrees)
+OBS_LON = 23.4322   # selenographic longitude (degrees)
+
+# ── Horizons API cache ───────────────────────────────────────────────────────
+CACHE_TTL = 600  # seconds (10 minutes)
+_cache = {'data': None, 'ts': 0}
+_cache_lock = threading.Lock()
+
+HORIZONS_TARGETS = [
+    ('10',  'Sun'),
+    ('599', 'Jupiter'),
+    ('699', 'Saturn'),
+    ('499', 'Mars'),
+]
+
+
+def _fetch_horizons():
+    """Fetch RA/Dec for targets as seen from Moon surface via JPL Horizons."""
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    start = now.strftime('%Y-%m-%d %H:%M')
+    end = (now + timedelta(minutes=2)).strftime('%Y-%m-%d %H:%M')
+
+    results = {}
+    for target_id, name in HORIZONS_TARGETS:
+        try:
+            params = {
+                'format': 'json',
+                'COMMAND': f"'{target_id}'",
+                'OBJ_DATA': 'NO',
+                'MAKE_EPHEM': 'YES',
+                'EPHEM_TYPE': 'OBSERVER',
+                'CENTER': "'coord@301'",
+                'COORD_TYPE': 'GEODETIC',
+                'SITE_COORD': f"'{OBS_LON:.3f},{OBS_LAT:.3f},0'",
+                'START_TIME': f"'{start}'",
+                'STOP_TIME': f"'{end}'",
+                'STEP_SIZE': '1m',
+                'QUANTITIES': '1',
+                'ANG_FORMAT': 'DEG',
+                'CSV_FORMAT': 'NO',
+                'CAL_FORMAT': 'CAL',
+            }
+            resp = requests.get(
+                'https://ssd.jpl.nasa.gov/api/horizons.api',
+                params=params,
+                timeout=8
+            )
+            data = resp.json()
+            if data and 'result' in data:
+                lines = data['result'].split('\n')
+                inside = False
+                for line in lines:
+                    if '$$SOE' in line:
+                        inside = True
+                        continue
+                    if '$$EOE' in line:
+                        break
+                    if inside and line.strip():
+                        parts = line.strip().split()
+                        if len(parts) >= 5:
+                            ra = float(parts[3])
+                            dec = float(parts[4])
+                            results[name] = {'ra': ra, 'dec': dec}
+                            break
+        except Exception as e:
+            log.warning(f'Horizons fetch failed for {name}: {e}')
+
+    return results
+
+
+def _refresh_cache():
+    """Refresh cache if stale."""
+    now = time.time()
+    with _cache_lock:
+        if now - _cache['ts'] < CACHE_TTL and _cache['data'] is not None:
+            return _cache['data']
+
+    # Fetch outside lock to avoid blocking
+    data = _fetch_horizons()
+    if data:
+        with _cache_lock:
+            _cache['data'] = data
+            _cache['ts'] = time.time()
+        log.info(f'Horizons cache refreshed: {list(data.keys())}')
+    return data
+
+
+# ── Routes ───────────────────────────────────────────────────────────────────
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+@app.route('/api/ephemeris')
+def ephemeris():
+    """Return cached planet positions from JPL Horizons."""
+    data = _refresh_cache()
+    if data:
+        return jsonify({'status': 'ok', 'source': 'horizons', 'bodies': data})
+    # Return empty on failure — frontend falls back to VSOP87
+    return jsonify({'status': 'fallback', 'source': 'vsop87', 'bodies': {}})
+
+
+# ── Background refresh thread ────────────────────────────────────────────────
+def _bg_refresh():
+    """Periodically refresh cache in background so requests are always fast."""
+    while True:
+        try:
+            _refresh_cache()
+        except Exception as e:
+            log.error(f'Background refresh error: {e}')
+        time.sleep(CACHE_TTL)
+
+
+_bg_thread = None
+
+
+def start_background_refresh():
+    global _bg_thread
+    if _bg_thread is None or not _bg_thread.is_alive():
+        _bg_thread = threading.Thread(target=_bg_refresh, daemon=True)
+        _bg_thread.start()
+        log.info('Background Horizons refresh thread started')
+
+
+# Start on import (works under mod_wsgi too)
+start_background_refresh()
+
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5050)
