@@ -10,6 +10,8 @@ function resize() {
   CX = W / 2;
   CY = H / 2;
   SR = Math.min(W, H) / 2;
+  // Recompute viewAlt so Earth (~67° alt) fits in sky zone on any aspect ratio
+  viewAlt = computeViewAlt();
 }
 resize();
 window.addEventListener('resize', resize);
@@ -79,7 +81,8 @@ function render(ts) {
     const aa = altaz(s.ra, s.dec, OBS.lat, lst);
     if (aa.alt < 0 || !inView(aa.alt, aa.az)) continue;
     const { x, y } = proj(aa.alt, aa.az);
-    if (x < -20 || x > W+20 || y < -20 || y > H+20) continue;
+    const skyBottom = H * (1 - GROUND_FRAC);
+    if (x < -20 || x > W+20 || y < -20 || y > skyBottom) continue;
     // No atmosphere — stars are full brightness immediately above horizon
     const ext = Math.min(1, Math.max(0, (aa.alt + 0.2) / 0.8));
     const baseA = Math.min(1, Math.max(0, (7.0 - s.mag) / 6.0)) * ext;

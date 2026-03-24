@@ -16,26 +16,46 @@ const PDEF = [
 // ── Canvas globals (set by main.js resize) ──────────────────────────────────
 let W, H, CX, CY, SR;
 
+// Fixed ground zone: panorama always occupies bottom portion of screen
+const GROUND_FRAC = 0.22;  // bottom 22% of screen
+
 function rg(x, y, r0, r1, stops) {
   const g = cx.createRadialGradient(x, y, r0, x, y, r1);
   stops.forEach(([t, c]) => g.addColorStop(t, c));
   return g;
 }
 
-// ── Projection (rectilinear with pitch offset) ─────────────────────────────
+// ── Compute viewAlt dynamically so Earth fits in sky zone ──────────────────
+function computeViewAlt() {
+  // Sky zone occupies top (1-GROUND_FRAC) of screen
+  // We want Earth (~67° alt) near the top of sky zone
+  // and horizon (0°) near the bottom of sky zone
+  // Center the sky projection between 0° and ~70° → viewAlt ≈ 35°
+  // But adjust for aspect ratio to keep both visible
+  const skyH = H * (1 - GROUND_FRAC);
+  const vfovSky = 2 * Math.atan(skyH / W * Math.tan(HFOV / 2)) * R2D;
+  // Place Earth at ~85% up the sky zone, horizon at ~5% up
+  // viewAlt = center of visible range
+  return Math.min(50, Math.max(25, vfovSky * 0.48));
+}
+
+// ── Projection (rectilinear, mapped to sky zone) ────────────────────────────
 function proj(alt, az) {
   let daz = ((az - viewAz + 540) % 360) - 180;
+  const skyH = H * (1 - GROUND_FRAC);
+  const skyCY = skyH / 2;  // vertical center of sky zone
   const scale = W / (2 * Math.tan(HFOV / 2));
   const x = CX + scale * Math.tan(daz * D2R);
-  const y = CY - scale * Math.tan((alt - viewAlt) * D2R);
+  const y = skyCY - scale * Math.tan((alt - viewAlt) * D2R);
   return { x, y };
 }
 
 function inView(alt, az) {
   let daz = ((az - viewAz + 540) % 360) - 180;
-  const vfov = (H / W) * HFOV * R2D;
+  const skyH = H * (1 - GROUND_FRAC);
+  const vfovSky = 2 * Math.atan(skyH / W * Math.tan(HFOV / 2)) * R2D;
   const dalt = alt - viewAlt;
-  return abs(daz) < HFOV * R2D * 0.62 && abs(dalt) < vfov * 0.58;
+  return abs(daz) < HFOV * R2D * 0.62 && abs(dalt) < vfovSky * 0.55;
 }
 
 // ── Draw star (airless Moon — perfectly steady, no scintillation) ───────────
@@ -54,8 +74,7 @@ function drawStar(x, y, sz, rgb, alpha) {
   cx.fillStyle = `rgba(255,255,255,${alpha*.98})`; cx.fill();
 }
 
-// ── Draw Earth (large, phase-correct, blue marble) ──────────────────────────
-// Earth image from DSCOVR/EPIC (loaded async, fallback to procedural)
+// ── Draw Earth (phase-correct, EPIC photo or procedural) ────────────────────
 let earthImg = null;
 let earthImgLoading = false;
 
@@ -71,13 +90,12 @@ function fetchEarthImage() {
 
 function drawEarth(x, y, alt, az, phase) {
   if (alt < -2 || !inView(alt, az)) return;
-  // Earth appears ~2° wide from the Moon — scale to screen
   const r = Math.max(18, SR * (2.0 / 90) * 3.0);
 
-  // Atmosphere glow
+  // Soft atmosphere glow
   const atmoR = r * 1.5;
-  const atmo = rg(x, y, r*.7, atmoR, [
-    [0,'rgba(60,120,255,0)'],[.3,'rgba(60,120,255,.18)'],[.7,'rgba(30,80,200,.08)'],[1,'rgba(10,40,140,0)']
+  const atmo = rg(x, y, r*.6, atmoR, [
+    [0,'rgba(60,130,255,0)'],[.4,'rgba(50,110,240,.12)'],[.8,'rgba(30,70,180,.04)'],[1,'rgba(10,40,140,0)']
   ]);
   cx.beginPath(); cx.arc(x, y, atmoR, 0, TAU); cx.fillStyle = atmo; cx.fill();
 
@@ -85,26 +103,23 @@ function drawEarth(x, y, alt, az, phase) {
   cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.clip();
 
   if (earthImg) {
-    // Draw EPIC Earth photo
     const imgSz = Math.min(earthImg.naturalWidth, earthImg.naturalHeight);
     const sx = (earthImg.naturalWidth - imgSz) / 2;
     const sy = (earthImg.naturalHeight - imgSz) / 2;
     cx.drawImage(earthImg, sx, sy, imgSz, imgSz, x-r, y-r, r*2, r*2);
   } else {
-    // Procedural fallback — blue marble
+    // Procedural blue marble
     const earthGrd = rg(x-r*.3, y-r*.3, r*.1, r*1.1, [
       [0,'rgba(130,180,255,1)'],[.25,'rgba(70,140,230,1)'],[.55,'rgba(30,90,200,1)'],[1,'rgba(10,50,150,1)']
     ]);
     cx.fillStyle = earthGrd; cx.fillRect(x-r, y-r, r*2, r*2);
-    // Land masses (rough continents)
     cx.fillStyle = 'rgba(50,120,50,.65)';
     const patches = [[-.3,-.2,.25,.18],[.05,-.3,.32,.22],[-.5,.05,.18,.28],[.3,.1,.22,.16],[-.1,.25,.28,.16],[.25,-.15,.15,.2]];
     patches.forEach(([ox,oy,w,h]) => { cx.beginPath(); cx.ellipse(x+ox*r, y+oy*r, w*r, h*r, ox*.5, 0, TAU); cx.fill(); });
-    // Cloud wisps
-    cx.strokeStyle = 'rgba(255,255,255,.25)';
-    cx.lineWidth = r * 0.04;
-    for (let i = 0; i < 6; i++) {
-      const cy2 = y + (i - 2.5) * r * 0.28;
+    cx.strokeStyle = 'rgba(255,255,255,.2)';
+    cx.lineWidth = r * 0.03;
+    for (let i = 0; i < 5; i++) {
+      const cy2 = y + (i - 2) * r * 0.3;
       cx.beginPath();
       cx.moveTo(x - r * 0.7, cy2);
       cx.quadraticCurveTo(x + (i % 2 ? .3 : -.2) * r, cy2 + r * 0.1, x + r * 0.6, cy2 + r * 0.05);
@@ -112,7 +127,7 @@ function drawEarth(x, y, alt, az, phase) {
     }
   }
 
-  // Phase terminator — always applied (even on EPIC photo, since EPIC shows full-disk sunlit side)
+  // Phase terminator
   const phaseAngle = phase * TAU;
   cx.fillStyle = 'rgba(0,0,0,.82)';
   cx.beginPath();
@@ -124,19 +139,15 @@ function drawEarth(x, y, alt, az, phase) {
 
   cx.restore();
 
-  // Bright rim
-  cx.beginPath(); cx.arc(x, y, r, 0, TAU);
-  cx.strokeStyle = 'rgba(150,190,255,.5)'; cx.lineWidth = 1.5; cx.stroke();
-
-  // Label
+  // No stroke ring — just the atmosphere glow
   if (showLabels) {
     cx.font = '10px Courier New';
-    cx.fillStyle = 'rgba(150,200,255,.7)';
+    cx.fillStyle = 'rgba(150,200,255,.6)';
     cx.fillText('EARTH', x + r + 8, y - r);
   }
 }
 
-// ── Draw Sun (harsh white, no corona from Moon's perspective) ────────────────
+// ── Draw Sun ────────────────────────────────────────────────────────────────
 function drawSun(x, y, alt, az) {
   if (alt < -2 || !inView(alt, az)) return;
   const r = SR * (.5 / 90) * 2;
@@ -214,86 +225,81 @@ function loadPhotos() {
   img.onload = () => {
     panoramaImg = img;
     panoramaReady = true;
-    document.getElementById('hsrc').textContent = 'APOLLO PANORAMA \u00b7 MARE TRANQUILLITATIS';
+    document.getElementById('hsrc').textContent = 'ALDRIN PANORAMA \u00b7 MARE TRANQUILLITATIS';
   };
   img.onerror = () => {
     document.getElementById('hsrc').textContent = 'MARE TRANQUILLITATIS';
   };
   img.src = '/static/photos/panorama.jpg';
-
-  // Also try to fetch EPIC Earth image
   fetchEarthImage();
 }
 
-// ── Draw lunar surface horizon ──────────────────────────────────────────────
+// ── Draw lunar surface (fixed screen position, bottom 22%) ──────────────────
 function drawHorizon() {
-  const scale = W / (2 * Math.tan(HFOV / 2));
-  // Horizon (alt=0) projects based on viewAlt
-  const groundY = CY + scale * Math.tan(viewAlt * D2R);
-  const surfH = H - groundY;  // everything below horizon
+  const groundY = Math.round(H * (1 - GROUND_FRAC));
+  const surfH = H - groundY;
 
-  if (surfH < 1) return;  // looking too far up, no ground visible
-
+  // Clip to ground zone
   cx.save();
   cx.beginPath(); cx.rect(0, groundY, W, surfH); cx.clip();
 
   if (panoramaReady && panoramaImg) {
-    // Draw panorama photo filling the ground area
-    // Panorama scrolls with azimuth for horizontal panning
     const imgW = panoramaImg.naturalWidth;
     const imgH = panoramaImg.naturalHeight;
 
-    // Scale panorama to fill ground width, maintain aspect
+    // Scale panorama height to fill ground zone; width follows aspect ratio
     const drawH = surfH;
-    const drawW = drawH * (imgW / imgH);  // maintain aspect ratio
-    // Horizontal scroll: map viewAz to image offset
+    const drawW = drawH * (imgW / imgH);
+
+    // Scroll horizontally with azimuth
     const scrollFrac = (viewAz % 360) / 360;
     const scrollX = -scrollFrac * drawW;
 
-    // Draw with wrapping for seamless scroll
+    // Draw with wrapping
     for (let shift = -1; shift <= 2; shift++) {
       const dx = scrollX + shift * drawW;
       if (dx + drawW < 0 || dx > W) continue;
       cx.drawImage(panoramaImg, 0, 0, imgW, imgH, dx, groundY, drawW, drawH);
     }
   } else {
-    // Fallback: simple gradient surface
+    // Fallback gradient
     const grad = cx.createLinearGradient(0, groundY, 0, H);
-    grad.addColorStop(0, '#3a362e');
-    grad.addColorStop(0.3, '#4a453b');
+    grad.addColorStop(0, '#4a453b');
+    grad.addColorStop(0.4, '#3a362e');
     grad.addColorStop(1, '#2a2620');
     cx.fillStyle = grad;
     cx.fillRect(0, groundY, W, surfH);
   }
 
-  // Gentle bottom vignette
-  const bot = cx.createLinearGradient(0, H - surfH * 0.3, 0, H);
+  // Bottom vignette
+  const bot = cx.createLinearGradient(0, H - surfH * 0.25, 0, H);
   bot.addColorStop(0, 'rgba(0,0,0,0)');
-  bot.addColorStop(1, 'rgba(0,0,0,0.4)');
+  bot.addColorStop(1, 'rgba(0,0,0,0.35)');
   cx.fillStyle = bot;
   cx.fillRect(0, groundY, W, surfH);
 
   cx.restore();
 
-  // Soft horizon edge (blend ground into sky)
-  const seamH = Math.min(20, surfH * 0.15);
-  const seam = cx.createLinearGradient(0, groundY - seamH, 0, groundY + seamH);
+  // Soft horizon blend
+  const seamH = Math.min(15, surfH * 0.12);
+  const seam = cx.createLinearGradient(0, groundY - seamH * 0.5, 0, groundY + seamH);
   seam.addColorStop(0, 'rgba(0,0,0,0)');
-  seam.addColorStop(0.5, 'rgba(0,0,0,0.3)');
+  seam.addColorStop(0.4, 'rgba(0,0,0,0.25)');
   seam.addColorStop(1, 'rgba(0,0,0,0)');
   cx.fillStyle = seam;
-  cx.fillRect(0, groundY - seamH, W, seamH * 2);
+  cx.fillRect(0, groundY - seamH * 0.5, W, seamH * 1.5);
 
-  // Compass bearing strip
-  if (showLabels && surfH > 30) {
+  // Compass bearings
+  if (showLabels) {
+    const scale = W / (2 * Math.tan(HFOV / 2));
     cx.font = '8px Courier New';
-    cx.fillStyle = 'rgba(190,175,140,0.45)';
+    cx.fillStyle = 'rgba(190,175,140,0.4)';
     cx.textAlign = 'center';
     for (let az2 = 0; az2 < 360; az2 += 10) {
       const daz = ((az2 - viewAz + 540) % 360) - 180;
       if (abs(daz) > HFOV * R2D * 0.54) continue;
       const px = CX + scale * Math.tan(daz * D2R);
-      cx.fillText(az2 % 30 === 0 ? az2 + '\u00b0' : '\u00b7', px, groundY - 6);
+      cx.fillText(az2 % 30 === 0 ? az2 + '\u00b0' : '\u00b7', px, groundY - 5);
     }
     cx.textAlign = 'left';
   }

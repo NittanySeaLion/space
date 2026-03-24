@@ -2,7 +2,7 @@
 
 // ── View state ──────────────────────────────────────────────────────────────
 let viewAz = 270;   // default facing West — Earth direction from Tranquility Base
-let viewAlt = 35;   // pitch up 35° — shows both horizon and Earth at ~67° alt
+let viewAlt = 35;   // initial; recomputed by computeViewAlt() after resize
 let showLabels = true;
 let showEvents = false;
 
@@ -49,7 +49,7 @@ function initTooltip(cv, getBodies) {
       const { x, y } = proj(aa.alt, aa.az);
       const r = Math.max(4, (2.9 - s.mag * .52) * 2.8);
       const d = Math.hypot(e.clientX - x, e.clientY - y);
-      if (d < r && d < md) { md = d; hit = { name: s.name || '\u2013', mag: s.mag, ...aa, ra: s.ra, dec: s.dec, type: 'star' }; }
+      if (d < r && d < md && s.name) { md = d; hit = { name: s.name, mag: s.mag, ...aa, ra: s.ra, dec: s.dec, type: 'star' }; }
     });
 
     if (hit) {
