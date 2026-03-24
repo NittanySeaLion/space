@@ -1,7 +1,7 @@
 'use strict';
 
 // ── View state ──────────────────────────────────────────────────────────────
-let viewAz = 0;
+let viewAz = 270;  // default facing West — Earth hangs near zenith at ~67° alt
 let showLabels = true;
 let showEvents = false;
 

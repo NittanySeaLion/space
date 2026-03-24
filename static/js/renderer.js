@@ -205,20 +205,85 @@ function checkPhotoDone() {
                        'NASA PHOTOS UNAVAILABLE';
 }
 
+// ── Normalize photos to uniform grayscale off-screen ────────────────────────
+let normalizedStrip = new Array(PHOTO_FILES.length).fill(null);
+let normalizeAttempted = false;
+
+function normalizePhotos() {
+  if (normalizeAttempted) return;
+  normalizeAttempted = true;
+  const TARGET_W = 800;  // normalize all to same resolution
+  const TARGET_H = 400;
+
+  photoStrip.forEach((img, i) => {
+    if (!img) return;
+    const offCv = document.createElement('canvas');
+    offCv.width = TARGET_W;
+    offCv.height = TARGET_H;
+    const offCx = offCv.getContext('2d');
+
+    // Draw cropped (skip top 40% = sky)
+    const srcY = img.naturalHeight * 0.40;
+    const srcH = img.naturalHeight * 0.60;
+    offCx.drawImage(img, 0, srcY, img.naturalWidth, srcH, 0, 0, TARGET_W, TARGET_H);
+
+    // Convert to grayscale + normalize brightness
+    const imgData = offCx.getImageData(0, 0, TARGET_W, TARGET_H);
+    const d = imgData.data;
+    let sum = 0, count = 0;
+    for (let j = 0; j < d.length; j += 4) {
+      const gray = 0.299 * d[j] + 0.587 * d[j+1] + 0.114 * d[j+2];
+      sum += gray; count++;
+    }
+    const avgBright = sum / count;
+    // Target brightness: uniform mid-gray (~100)
+    const targetBright = 100;
+    const scale = targetBright / (avgBright + 1);
+
+    for (let j = 0; j < d.length; j += 4) {
+      let gray = 0.299 * d[j] + 0.587 * d[j+1] + 0.114 * d[j+2];
+      gray = Math.min(255, gray * scale);
+      // Slight warm lunar tint
+      d[j]   = Math.min(255, gray * 1.02);  // R
+      d[j+1] = Math.min(255, gray * 0.97);  // G
+      d[j+2] = Math.min(255, gray * 0.90);  // B
+    }
+    offCx.putImageData(imgData, 0, 0);
+
+    // Store as new Image from canvas
+    const normImg = new Image();
+    normImg.src = offCv.toDataURL('image/jpeg', 0.85);
+    normImg.onload = () => { normalizedStrip[i] = normImg; };
+    // Fallback: use canvas directly
+    normalizedStrip[i] = offCv;
+  });
+}
+
 // ── Draw lunar surface horizon ──────────────────────────────────────────────
 function drawHorizon() {
   const scale  = W / (2 * Math.tan(HFOV / 2));
   const photoH = Math.round(H * 0.40);
   const groundY = CY;
 
-  if (photoStripReady && photoStrip.some(p => p)) {
+  // Normalize photos once they're all loaded
+  if (photoStripReady && !normalizeAttempted) normalizePhotos();
+
+  const hasNorm = normalizedStrip.some(p => p);
+
+  if (photoStripReady && hasNorm) {
     const AZ_PER_PHOTO = 60;
+    const OVERLAP = 8;  // pixels of feathered overlap between panels
     cx.save();
     cx.beginPath(); cx.rect(0, groundY, W, H - groundY); cx.clip();
 
-    for (let pi = 0; pi < photoStrip.length; pi++) {
-      const img = photoStrip[pi];
-      if (!img) continue;
+    // Draw each normalized photo panel
+    for (let pi = 0; pi < normalizedStrip.length; pi++) {
+      const src = normalizedStrip[pi];
+      if (!src) continue;
+      // src is either a canvas or an Image
+      const srcW = src.width || src.naturalWidth;
+      const srcH = src.height || src.naturalHeight;
+
       for (const shift of [0, -360, 360]) {
         const az0 = pi * AZ_PER_PHOTO + shift;
         const az1 = az0 + AZ_PER_PHOTO;
@@ -229,26 +294,42 @@ function drawHorizon() {
         const x1 = CX + scale * Math.tan(daz1 * D2R);
         const drawW = x1 - x0;
         if (drawW < 0.5) continue;
-        const srcY = img.naturalHeight * 0.40;
-        const srcH = img.naturalHeight * 0.60;
-        cx.drawImage(img, 0, srcY, img.naturalWidth, srcH, x0, groundY, drawW, photoH);
+        // Draw already-cropped normalized image (full source)
+        cx.drawImage(src, 0, 0, srcW, srcH, x0, groundY, drawW, photoH);
+
+        // Feather left edge
+        if (OVERLAP > 0) {
+          const featherW = Math.min(OVERLAP * 3, drawW * 0.1);
+          const fL = cx.createLinearGradient(x0, 0, x0 + featherW, 0);
+          fL.addColorStop(0, 'rgba(0,0,0,0.6)');
+          fL.addColorStop(1, 'rgba(0,0,0,0)');
+          cx.fillStyle = fL;
+          cx.fillRect(x0, groundY, featherW, photoH);
+          // Feather right edge
+          const fR = cx.createLinearGradient(x1 - featherW, 0, x1, 0);
+          fR.addColorStop(0, 'rgba(0,0,0,0)');
+          fR.addColorStop(1, 'rgba(0,0,0,0.6)');
+          cx.fillStyle = fR;
+          cx.fillRect(x1 - featherW, groundY, featherW, photoH);
+        }
       }
     }
 
-    cx.globalCompositeOperation = 'multiply';
-    cx.fillStyle = 'rgba(160,150,135,0.55)';
+    // Darken overall to match lunar night ambience
+    cx.fillStyle = 'rgba(0,0,0,0.25)';
     cx.fillRect(0, groundY, W, H - groundY);
-    cx.globalCompositeOperation = 'source-over';
 
-    const bot = cx.createLinearGradient(0, groundY + photoH * 0.55, 0, H);
+    // Bottom vignette
+    const bot = cx.createLinearGradient(0, groundY + photoH * 0.45, 0, H);
     bot.addColorStop(0, 'rgba(0,0,0,0)');
-    bot.addColorStop(1, 'rgba(0,0,0,0.82)');
+    bot.addColorStop(1, 'rgba(0,0,0,0.88)');
     cx.fillStyle = bot;
     cx.fillRect(0, groundY, W, H - groundY);
 
+    // Horizon contact shadow
     const seam = cx.createLinearGradient(0, groundY - 6, 0, groundY + 18);
     seam.addColorStop(0, 'rgba(0,0,0,0)');
-    seam.addColorStop(0.5, 'rgba(0,0,0,0.45)');
+    seam.addColorStop(0.5, 'rgba(0,0,0,0.5)');
     seam.addColorStop(1, 'rgba(0,0,0,0)');
     cx.fillStyle = seam;
     cx.fillRect(0, groundY - 6, W, 24);
