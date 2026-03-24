@@ -168,233 +168,210 @@ function drawMW(lst, lat) {
   cx.restore();
 }
 
-// ── Apollo photo strip (self-hosted) ────────────────────────────────────────
-const PHOTO_FILES = [
-  '/static/photos/as11-40-5961.jpg',
-  '/static/photos/as11-40-5931.jpg',
-  '/static/photos/as11-40-5873.jpg',
-  '/static/photos/as11-40-5886.jpg',
-  '/static/photos/as11-40-5927.jpg',
-  '/static/photos/as11-40-5880.jpg',
-];
-
-let photoStrip = new Array(PHOTO_FILES.length).fill(null);
-let photoStripReady = false;
-let photosAttempted = 0;
-
-function loadPhotos() {
-  PHOTO_FILES.forEach((src, i) => {
-    const img = new Image();
-    img.onload = () => { photoStrip[i] = img; photosAttempted++; checkPhotoDone(); };
-    img.onerror = () => { photosAttempted++; checkPhotoDone(); };
-    img.src = src;
-  });
+// ── Procedural lunar surface ────────────────────────────────────────────────
+// Seeded hash for deterministic noise (same surface every load)
+function hash(x, y) {
+  let h = x * 374761393 + y * 668265263;
+  h = (h ^ (h >> 13)) * 1274126177;
+  h = h ^ (h >> 16);
+  return (h & 0x7fffffff) / 0x7fffffff;  // 0..1
 }
 
-function checkPhotoDone() {
-  const total = PHOTO_FILES.length;
-  const loaded = photoStrip.filter(p => p).length;
-  if (photosAttempted < total) {
-    document.getElementById('hsrc').textContent = `LOADING NASA PHOTOS ${photosAttempted}/${total}`;
-    return;
+function smoothNoise(x, y) {
+  const ix = Math.floor(x), iy = Math.floor(y);
+  const fx = x - ix, fy = y - iy;
+  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const n00 = hash(ix, iy), n10 = hash(ix+1, iy);
+  const n01 = hash(ix, iy+1), n11 = hash(ix+1, iy+1);
+  const nx0 = n00 + (n10 - n00) * sx;
+  const nx1 = n01 + (n11 - n01) * sx;
+  return nx0 + (nx1 - nx0) * sy;
+}
+
+function fbmNoise(x, y, octaves) {
+  let val = 0, amp = 0.5, freq = 1, total = 0;
+  for (let i = 0; i < octaves; i++) {
+    val += smoothNoise(x * freq, y * freq) * amp;
+    total += amp;
+    amp *= 0.5;
+    freq *= 2.1;
   }
-  photoStripReady = loaded > 0;
-  document.getElementById('hsrc').textContent =
-    loaded === total ? 'NASA AS11 HASSELBLAD \u00b7 JULY 20 1969' :
-    loaded > 0       ? `NASA AS11 \u00b7 ${loaded}/${total} FRAMES` :
-                       'NASA PHOTOS UNAVAILABLE';
+  return val / total;
 }
 
-// ── Normalize photos to uniform grayscale off-screen ────────────────────────
-let normalizedStrip = new Array(PHOTO_FILES.length).fill(null);
-let normalizeAttempted = false;
-let normalizeReady = false;
+// Pre-generate surface texture (once)
+let surfaceCanvas = null;
+let surfaceGenerated = false;
+const SURF_W = 2048;  // wraps around 360°
+const SURF_H = 256;
 
-function normalizePhotos() {
-  if (normalizeAttempted) return;
-  normalizeAttempted = true;
-  const TARGET_W = 640;  // consistent small size avoids large-image artifacts
-  const TARGET_H = 320;
-  let done = 0;
+function generateSurface() {
+  if (surfaceGenerated) return;
+  surfaceGenerated = true;
 
-  photoStrip.forEach((img, i) => {
-    if (!img) { done++; return; }
-    const offCv = document.createElement('canvas');
-    offCv.width = TARGET_W;
-    offCv.height = TARGET_H;
-    const offCx = offCv.getContext('2d');
+  surfaceCanvas = document.createElement('canvas');
+  surfaceCanvas.width = SURF_W;
+  surfaceCanvas.height = SURF_H;
+  const sc = surfaceCanvas.getContext('2d');
+  const imgData = sc.createImageData(SURF_W, SURF_H);
+  const d = imgData.data;
 
-    // Draw cropped (skip top 40% = sky)
-    const srcY = img.naturalHeight * 0.40;
-    const srcH = img.naturalHeight * 0.60;
-    offCx.drawImage(img, 0, srcY, img.naturalWidth, srcH, 0, 0, TARGET_W, TARGET_H);
+  // Pre-compute crater positions (seeded)
+  const craters = [];
+  for (let i = 0; i < 120; i++) {
+    craters.push({
+      x: hash(i * 7, 31) * SURF_W,
+      y: hash(i * 13, 47) * SURF_H * 0.7 + SURF_H * 0.05,
+      r: 3 + hash(i * 19, 61) * 25,
+      depth: 0.15 + hash(i * 23, 71) * 0.25
+    });
+  }
 
-    // Convert to grayscale + normalize brightness
-    const imgData = offCx.getImageData(0, 0, TARGET_W, TARGET_H);
-    const d = imgData.data;
-    let sum = 0, count = 0;
-    for (let j = 0; j < d.length; j += 4) {
-      const gray = 0.299 * d[j] + 0.587 * d[j+1] + 0.114 * d[j+2];
-      sum += gray; count++;
+  for (let py = 0; py < SURF_H; py++) {
+    // Distance from horizon: near top = far away (lighter), bottom = close (darker details)
+    const distFrac = py / SURF_H;  // 0=horizon, 1=foreground
+    const detailScale = 0.5 + distFrac * 1.5;
+
+    for (let px = 0; px < SURF_W; px++) {
+      const idx = (py * SURF_W + px) * 4;
+
+      // Multi-octave noise for regolith texture
+      const nx = px / SURF_W * 32;
+      const ny = py / SURF_H * 16;
+      let n = fbmNoise(nx, ny, 6);
+
+      // Fine grain noise (close-up regolith texture)
+      n += (hash(px, py) - 0.5) * 0.06 * detailScale;
+
+      // Crater shadows
+      for (let ci = 0; ci < craters.length; ci++) {
+        const c = craters[ci];
+        let dx = px - c.x;
+        // Wrap around
+        if (dx > SURF_W / 2) dx -= SURF_W;
+        if (dx < -SURF_W / 2) dx += SURF_W;
+        const dy = py - c.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < c.r) {
+          const rimDist = dist / c.r;
+          // Rim is brighter, inside is darker
+          if (rimDist > 0.75) {
+            n += (rimDist - 0.75) * 4 * c.depth * 0.5;  // bright rim
+          } else {
+            n -= (1 - rimDist / 0.75) * c.depth;  // dark interior
+          }
+        } else if (dist < c.r * 1.3) {
+          // Ejecta blanket: slightly brighter
+          n += (1 - (dist - c.r) / (c.r * 0.3)) * c.depth * 0.15;
+        }
+      }
+
+      // Distance fog: far objects (near horizon) are lighter/hazier
+      const fogMix = Math.max(0, 1 - distFrac * 1.8);
+      n = n * (1 - fogMix * 0.4) + 0.55 * fogMix * 0.4;
+
+      // Map noise to gray value (lunar regolith is ~7-12% albedo)
+      let gray = Math.max(0, Math.min(1, n)) * 180 + 30;
+
+      // Warm lunar tint
+      d[idx]     = Math.min(255, gray * 1.02);  // R
+      d[idx + 1] = Math.min(255, gray * 0.97);  // G
+      d[idx + 2] = Math.min(255, gray * 0.90);  // B
+      d[idx + 3] = 255;
     }
-    const avgBright = sum / count;
-    const targetBright = 110;
-    const sc = targetBright / (avgBright + 1);
+  }
 
-    for (let j = 0; j < d.length; j += 4) {
-      let gray = 0.299 * d[j] + 0.587 * d[j+1] + 0.114 * d[j+2];
-      gray = Math.min(240, gray * sc);
-      // Warm lunar regolith tint
-      d[j]   = Math.min(255, gray * 1.03);  // R
-      d[j+1] = Math.min(255, gray * 0.98);  // G
-      d[j+2] = Math.min(255, gray * 0.91);  // B
-    }
-    offCx.putImageData(imgData, 0, 0);
-
-    // Convert canvas to Image for reliable drawImage
-    const dataUrl = offCv.toDataURL('image/jpeg', 0.90);
-    const normImg = new Image();
-    normImg.onload = () => {
-      normalizedStrip[i] = normImg;
-      done++;
-      if (done >= PHOTO_FILES.length) normalizeReady = true;
-    };
-    normImg.onerror = () => {
-      normalizedStrip[i] = offCv;  // fallback to canvas
-      done++;
-      if (done >= PHOTO_FILES.length) normalizeReady = true;
-    };
-    normImg.src = dataUrl;
-  });
+  sc.putImageData(imgData, 0, 0);
+  document.getElementById('hsrc').textContent = 'PROCEDURAL REGOLITH \u00b7 MARE TRANQUILLITATIS';
 }
+
+// No-op for compatibility with main.js loadPhotos() call
+function loadPhotos() { generateSurface(); }
 
 // ── Draw lunar surface horizon ──────────────────────────────────────────────
 function drawHorizon() {
   const scale  = W / (2 * Math.tan(HFOV / 2));
-  const photoH = Math.round(H * 0.40);
+  const surfH  = Math.round(H * 0.40);
   const groundY = CY;
 
-  // Normalize photos once they're all loaded
-  if (photoStripReady && !normalizeAttempted) normalizePhotos();
-
-  // Compute sun lighting for surface
+  // Compute sun lighting
   const jdNow = toJD(new Date());
   const sunAlt = sunAltTranquility(jdNow);
   const pf = moonPhaseFrac(jdNow);
-  const earthIllum = earthIllumination(pf);
+  const eIllum = earthIllumination(pf);
 
   // Surface brightness: 0 = pitch black, 1 = full sunlight
-  // Smooth transition across terminator (-2° to +5°)
   let sunBright = 0;
   if (sunAlt > 5)       sunBright = 1.0;
-  else if (sunAlt > -2) sunBright = (sunAlt + 2) / 7;  // gradual sunrise/sunset
+  else if (sunAlt > -2) sunBright = (sunAlt + 2) / 7;
 
-  // Earthshine: faint blue glow during lunar night (Earth reflects sunlight)
-  // earthIllum: 0 = new Earth (dark), 1 = full Earth (bright)
-  const earthshineBright = (1 - sunBright) * earthIllum * 0.12;
-
-  // Combined surface alpha: how much to darken photos
-  // At full sun: darken 15% (photos were shot in sunlight, so mostly show as-is)
-  // At night with full earthshine: darken ~75%
-  // At night without earthshine: darken ~92%
+  // Earthshine during lunar night
+  const earthshineBright = (1 - sunBright) * eIllum * 0.12;
   const darkOverlay = 1.0 - Math.max(0.08, sunBright * 0.85 + earthshineBright);
 
-  if (normalizeReady && normalizedStrip.some(p => p)) {
-    const AZ_PER_PHOTO = 60;
-    cx.save();
-    cx.beginPath(); cx.rect(0, groundY, W, H - groundY); cx.clip();
+  // Generate surface texture on first call
+  if (!surfaceGenerated) generateSurface();
 
-    // Draw each normalized photo panel
-    for (let pi = 0; pi < normalizedStrip.length; pi++) {
-      const src = normalizedStrip[pi];
-      if (!src) continue;
-      const srcW = src.width || src.naturalWidth;
-      const srcH = src.height || src.naturalHeight;
+  cx.save();
+  cx.beginPath(); cx.rect(0, groundY, W, H - groundY); cx.clip();
 
-      for (const shift of [0, -360, 360]) {
-        const az0 = pi * AZ_PER_PHOTO + shift;
-        const az1 = az0 + AZ_PER_PHOTO;
-        let daz0 = ((az0 - viewAz + 540) % 360) - 180;
-        let daz1 = ((az1 - viewAz + 540) % 360) - 180;
-        if (Math.abs(daz1 - daz0) > AZ_PER_PHOTO + 2) continue;
-        const x0 = CX + scale * Math.tan(daz0 * D2R);
-        const x1 = CX + scale * Math.tan(daz1 * D2R);
-        const drawW = x1 - x0;
-        if (drawW < 0.5) continue;
-        cx.drawImage(src, 0, 0, srcW, srcH, x0, groundY, drawW, photoH);
+  if (surfaceCanvas) {
+    // Map view azimuth to texture X offset (seamless wrap)
+    const texOffset = (viewAz / 360) * SURF_W;
 
-        // Feather edges between panels
-        const featherW = Math.min(30, drawW * 0.08);
-        const fL = cx.createLinearGradient(x0, 0, x0 + featherW, 0);
-        fL.addColorStop(0, 'rgba(0,0,0,0.5)');
-        fL.addColorStop(1, 'rgba(0,0,0,0)');
-        cx.fillStyle = fL;
-        cx.fillRect(x0, groundY, featherW, photoH);
-        const fR = cx.createLinearGradient(x1 - featherW, 0, x1, 0);
-        fR.addColorStop(0, 'rgba(0,0,0,0)');
-        fR.addColorStop(1, 'rgba(0,0,0,0.5)');
-        cx.fillStyle = fR;
-        cx.fillRect(x1 - featherW, groundY, featherW, photoH);
-      }
-    }
+    // Draw surface texture, wrapping seamlessly
+    for (const shift of [0, SURF_W, -SURF_W]) {
+      const srcX = texOffset + shift;
+      // Map screen pixels to texture coordinates
+      // Full 360° = SURF_W pixels; visible FOV maps to screen width
+      const fovDeg = HFOV * R2D;
+      const texPerDeg = SURF_W / 360;
+      const texVisible = fovDeg * texPerDeg * 1.3;  // slight over-draw
+      const screenPerTex = W / (fovDeg * texPerDeg);
 
-    // Dynamic sun/shadow overlay
-    cx.fillStyle = `rgba(0,0,0,${darkOverlay.toFixed(3)})`;
-    cx.fillRect(0, groundY, W, H - groundY);
+      const drawX = -((srcX % SURF_W + SURF_W) % SURF_W) * screenPerTex + CX;
+      const drawTotalW = SURF_W * screenPerTex;
 
-    // Earthshine blue tint during lunar night
-    if (earthshineBright > 0.01) {
-      cx.fillStyle = `rgba(40,80,160,${(earthshineBright * 0.5).toFixed(3)})`;
-      cx.fillRect(0, groundY, W, H - groundY);
-    }
-
-    // Warm tint at low sun angles (sunrise/sunset golden hour)
-    if (sunAlt > -2 && sunAlt < 12) {
-      const goldenStrength = Math.max(0, 1 - abs(sunAlt - 3) / 10) * 0.15;
-      if (goldenStrength > 0.005) {
-        cx.fillStyle = `rgba(200,140,50,${goldenStrength.toFixed(3)})`;
-        cx.fillRect(0, groundY, W, H - groundY);
-      }
-    }
-
-    // Bottom vignette
-    const bot = cx.createLinearGradient(0, groundY + photoH * 0.45, 0, H);
-    bot.addColorStop(0, 'rgba(0,0,0,0)');
-    bot.addColorStop(1, 'rgba(0,0,0,0.88)');
-    cx.fillStyle = bot;
-    cx.fillRect(0, groundY, W, H - groundY);
-
-    // Horizon contact shadow
-    const seam = cx.createLinearGradient(0, groundY - 6, 0, groundY + 18);
-    seam.addColorStop(0, 'rgba(0,0,0,0)');
-    seam.addColorStop(0.5, 'rgba(0,0,0,0.5)');
-    seam.addColorStop(1, 'rgba(0,0,0,0)');
-    cx.fillStyle = seam;
-    cx.fillRect(0, groundY - 6, W, 24);
-
-    cx.restore();
-
-    cx.font = '8px Courier New';
-    cx.fillStyle = 'rgba(180,165,130,0.28)';
-    cx.fillText('NASA \u00b7 APOLLO 11 \u00b7 AS11-40 \u00b7 HASSELBLAD \u00b7 TRANQUILITY BASE \u00b7 JULY 20 1969', 10, H - 8);
-  } else {
-    // Procedural fallback while normalizing or if photos unavailable
-    const baseBright = Math.max(8, Math.round(52 * Math.max(0.15, sunBright)));
-    const grad = cx.createLinearGradient(0, groundY, 0, H);
-    grad.addColorStop(0,   `rgba(${baseBright},${Math.round(baseBright*0.9)},${Math.round(baseBright*0.77)},1)`);
-    grad.addColorStop(0.3, `rgba(${Math.round(baseBright*0.73)},${Math.round(baseBright*0.65)},${Math.round(baseBright*0.54)},1)`);
-    grad.addColorStop(1,   `rgba(${Math.round(baseBright*0.38)},${Math.round(baseBright*0.35)},${Math.round(baseBright*0.27)},1)`);
-    cx.fillStyle = grad;
-    cx.fillRect(0, groundY, W, H - groundY);
-
-    if (!photoStripReady && photosAttempted < PHOTO_FILES.length) {
-      cx.font = '9px Courier New';
-      cx.fillStyle = 'rgba(160,140,100,0.4)';
-      cx.textAlign = 'center';
-      cx.fillText(`LOADING NASA SURFACE PHOTOS  ${photosAttempted}/${PHOTO_FILES.length}`, CX, groundY + 28);
-      cx.textAlign = 'left';
+      if (drawX + drawTotalW < 0 || drawX > W) continue;
+      cx.drawImage(surfaceCanvas, 0, 0, SURF_W, SURF_H, drawX, groundY, drawTotalW, surfH);
     }
   }
+
+  // Dynamic sun/shadow overlay
+  cx.fillStyle = `rgba(0,0,0,${darkOverlay.toFixed(3)})`;
+  cx.fillRect(0, groundY, W, H - groundY);
+
+  // Earthshine blue tint during lunar night
+  if (earthshineBright > 0.01) {
+    cx.fillStyle = `rgba(40,80,160,${(earthshineBright * 0.5).toFixed(3)})`;
+    cx.fillRect(0, groundY, W, H - groundY);
+  }
+
+  // Warm tint at low sun angles (sunrise/sunset)
+  if (sunAlt > -2 && sunAlt < 12) {
+    const golden = Math.max(0, 1 - abs(sunAlt - 3) / 10) * 0.15;
+    if (golden > 0.005) {
+      cx.fillStyle = `rgba(200,140,50,${golden.toFixed(3)})`;
+      cx.fillRect(0, groundY, W, H - groundY);
+    }
+  }
+
+  // Bottom vignette
+  const bot = cx.createLinearGradient(0, groundY + surfH * 0.45, 0, H);
+  bot.addColorStop(0, 'rgba(0,0,0,0)');
+  bot.addColorStop(1, 'rgba(0,0,0,0.88)');
+  cx.fillStyle = bot;
+  cx.fillRect(0, groundY, W, H - groundY);
+
+  // Horizon contact shadow
+  const seam = cx.createLinearGradient(0, groundY - 4, 0, groundY + 14);
+  seam.addColorStop(0, 'rgba(0,0,0,0)');
+  seam.addColorStop(0.5, 'rgba(0,0,0,0.45)');
+  seam.addColorStop(1, 'rgba(0,0,0,0)');
+  cx.fillStyle = seam;
+  cx.fillRect(0, groundY - 4, W, 18);
+
+  cx.restore();
 
   // Horizon line with terrain undulation
   cx.beginPath();
@@ -403,14 +380,14 @@ function drawHorizon() {
     const bump = 1.2*sin(az*.31) + 0.8*sin(az*.59) + 0.5*sin(az*1.1) + 0.25*sin(az*2.3);
     px === 0 ? cx.moveTo(px, groundY + bump) : cx.lineTo(px, groundY + bump);
   }
-  cx.strokeStyle = 'rgba(120,108,85,0.5)';
+  cx.strokeStyle = `rgba(120,108,85,${(0.2 + sunBright * 0.4).toFixed(2)})`;
   cx.lineWidth = 1.0;
   cx.stroke();
 
   // Compass bearing strip
   if (showLabels) {
     cx.font = '8px Courier New';
-    cx.fillStyle = 'rgba(190,175,140,0.48)';
+    cx.fillStyle = `rgba(190,175,140,${(0.15 + sunBright * 0.35).toFixed(2)})`;
     cx.textAlign = 'center';
     for (let az2 = 0; az2 < 360; az2 += 10) {
       const daz = ((az2 - viewAz + 540) % 360) - 180;
