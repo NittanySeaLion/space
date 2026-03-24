@@ -119,7 +119,7 @@ function drawPlanet(p) {
   if (p.alt < 0 || !inView(p.alt, p.az)) return null;
   const { x, y } = proj(p.alt, p.az);
   if (x < -80 || x > W+80 || y < -80 || y > H+80) return null;
-  const ext = Math.min(1, Math.max(0, (p.alt + 4) / 15));
+  const ext = Math.min(1, Math.max(0, (p.alt + 0.5) / 1.5));
   const [r, g, b] = p.col, sz = p.sz;
   if (p.cr > 0) {
     const cg = rg(x, y, 0, sz+p.cr, [[0,`rgba(${r},${g},${b},${ext})`],[.3,`rgba(${r},${g},${b},${ext*.4})`],[.7,`rgba(${r},${g},${b},${ext*.08})`],[1,`rgba(${r},${g},${b},0)`]]);

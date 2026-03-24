@@ -80,9 +80,10 @@ function render(ts) {
     if (aa.alt < 0 || !inView(aa.alt, aa.az)) continue;
     const { x, y } = proj(aa.alt, aa.az);
     if (x < -20 || x > W+20 || y < -20 || y > H+20) continue;
-    const ext = Math.min(1, Math.max(0, (aa.alt + .5) / 5));
-    const baseA = Math.min(1, Math.max(0, (7.0 - s.mag) / 6.5)) * ext;
-    drawStar(x, y, Math.max(.25, 2.9 - s.mag * .52), bv2rgb(s.bv), Math.min(1, baseA * 1.1));
+    // No atmosphere — stars are full brightness immediately above horizon
+    const ext = Math.min(1, Math.max(0, (aa.alt + 0.2) / 0.8));
+    const baseA = Math.min(1, Math.max(0, (7.0 - s.mag) / 6.0)) * ext;
+    drawStar(x, y, Math.max(.4, 3.2 - s.mag * .52), bv2rgb(s.bv), Math.min(1, baseA * 1.2));
   }
 
   // Bodies
