@@ -90,7 +90,8 @@ function fetchEarthImage() {
 
 function drawEarth(x, y, alt, az, phase) {
   if (alt < -2 || !inView(alt, az)) return;
-  const r = Math.max(18, SR * (2.0 / 90) * 3.0);
+  // Earth is ~1.9° angular diameter from Moon — exaggerate for visual impact
+  const r = Math.max(24, SR * (2.0 / 90) * 9.0);
 
   // Soft atmosphere glow
   const atmoR = r * 1.5;
@@ -139,11 +140,17 @@ function drawEarth(x, y, alt, az, phase) {
 
   cx.restore();
 
-  // No stroke ring — just the atmosphere glow
+  // Label — position away from screen edge
   if (showLabels) {
     cx.font = '10px Courier New';
     cx.fillStyle = 'rgba(150,200,255,.6)';
-    cx.fillText('EARTH', x + r + 8, y - r);
+    if (x + r + 60 > W) {
+      cx.textAlign = 'right';
+      cx.fillText('EARTH', x - r - 8, y - r);
+      cx.textAlign = 'left';
+    } else {
+      cx.fillText('EARTH', x + r + 8, y - r);
+    }
   }
 }
 
