@@ -89,8 +89,8 @@ function fetchEarthImage() {
 
 function drawEarth(x, y, alt, az, phase) {
   if (alt < -2 || !inView(alt, az)) return;
-  // Earth is ~1.9° angular diameter from Moon — physically accurate
-  const r = Math.max(6, 0.95 * pxPerDeg());
+  // Earth is ~1.9° angular diameter from Moon — 1.6x boost for readability
+  const r = Math.max(8, 0.95 * pxPerDeg() * 1.6);
 
   // No halo — Earth rendered clean
 
