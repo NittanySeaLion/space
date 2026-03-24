@@ -16,8 +16,8 @@ const PDEF = [
 // ── Canvas globals (set by main.js resize) ──────────────────────────────────
 let W, H, CX, CY, SR;
 
-// Fixed ground zone: panorama always occupies bottom portion of screen
-const GROUND_FRAC = 0.22;  // bottom 22% of screen
+// Fixed ground zone: panorama occupies bottom portion of screen
+const GROUND_FRAC = 0.14;  // bottom 14% — cropped for more sky
 
 function rg(x, y, r0, r1, stops) {
   const g = cx.createRadialGradient(x, y, r0, x, y, r1);
@@ -25,37 +25,36 @@ function rg(x, y, r0, r1, stops) {
   return g;
 }
 
-// ── Compute viewAlt dynamically so Earth fits in sky zone ──────────────────
+// ── Equirectangular projection helpers ──────────────────────────────────────
+// Pixels per degree (uniform angular scale, no edge distortion)
+function pxPerDeg() { return W / (HFOV * R2D); }
+
+// Compute viewAlt so Earth (~67°) and horizon (~0°) both fit in sky zone
 function computeViewAlt() {
-  // Sky zone occupies top (1-GROUND_FRAC) of screen
-  // We want Earth (~67° alt) near the top of sky zone
-  // and horizon (0°) near the bottom of sky zone
-  // Center the sky projection between 0° and ~70° → viewAlt ≈ 35°
-  // But adjust for aspect ratio to keep both visible
   const skyH = H * (1 - GROUND_FRAC);
-  const vfovSky = 2 * Math.atan(skyH / W * Math.tan(HFOV / 2)) * R2D;
-  // Place Earth at ~85% up the sky zone, horizon at ~5% up
-  // viewAlt = center of visible range
-  return Math.min(50, Math.max(25, vfovSky * 0.48));
+  const vfovSky = skyH / pxPerDeg();  // vertical FOV in degrees
+  // Center between horizon (0°) and Earth (~67°), biased slightly low
+  // so horizon is near the bottom of sky zone
+  return Math.min(55, Math.max(20, Math.min(67, vfovSky) * 0.47));
 }
 
-// ── Projection (rectilinear, mapped to sky zone) ────────────────────────────
+// ── Projection (equirectangular, mapped to sky zone) ────────────────────────
 function proj(alt, az) {
   let daz = ((az - viewAz + 540) % 360) - 180;
+  const ppd = pxPerDeg();
   const skyH = H * (1 - GROUND_FRAC);
-  const skyCY = skyH / 2;  // vertical center of sky zone
-  const scale = W / (2 * Math.tan(HFOV / 2));
-  const x = CX + scale * Math.tan(daz * D2R);
-  const y = skyCY - scale * Math.tan((alt - viewAlt) * D2R);
+  const skyCY = skyH / 2;
+  const x = CX + daz * ppd;
+  const y = skyCY - (alt - viewAlt) * ppd;
   return { x, y };
 }
 
 function inView(alt, az) {
   let daz = ((az - viewAz + 540) % 360) - 180;
   const skyH = H * (1 - GROUND_FRAC);
-  const vfovSky = 2 * Math.atan(skyH / W * Math.tan(HFOV / 2)) * R2D;
+  const vfovSky = skyH / pxPerDeg();
   const dalt = alt - viewAlt;
-  return abs(daz) < HFOV * R2D * 0.62 && abs(dalt) < vfovSky * 0.55;
+  return abs(daz) < HFOV * R2D * 0.55 && abs(dalt) < vfovSky * 0.55;
 }
 
 // ── Draw star (airless Moon — perfectly steady, no scintillation) ───────────
@@ -90,8 +89,8 @@ function fetchEarthImage() {
 
 function drawEarth(x, y, alt, az, phase) {
   if (alt < -2 || !inView(alt, az)) return;
-  // Earth is ~1.9° angular diameter from Moon — exaggerate for visual impact
-  const r = Math.max(24, SR * (2.0 / 90) * 9.0);
+  // Earth is ~1.9° angular diameter from Moon — physically accurate
+  const r = Math.max(6, 0.95 * pxPerDeg());
 
   // No halo — Earth rendered clean
 
@@ -311,14 +310,14 @@ function drawHorizon() {
 
   // Compass bearings
   if (showLabels) {
-    const scale = W / (2 * Math.tan(HFOV / 2));
+    const ppd = pxPerDeg();
     cx.font = '8px Courier New';
     cx.fillStyle = 'rgba(190,175,140,0.4)';
     cx.textAlign = 'center';
     for (let az2 = 0; az2 < 360; az2 += 10) {
       const daz = ((az2 - viewAz + 540) % 360) - 180;
       if (abs(daz) > HFOV * R2D * 0.54) continue;
-      const px = CX + scale * Math.tan(daz * D2R);
+      const px = CX + daz * ppd;
       cx.fillText(az2 % 30 === 0 ? az2 + '\u00b0' : '\u00b7', px, groundY - 5);
     }
     cx.textAlign = 'left';

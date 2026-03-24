@@ -15,9 +15,9 @@ function initDrag(cv) {
   });
   cv.addEventListener('mousemove', e => {
     if (dragStart) {
-      const scale = W / (2 * Math.tan(HFOV / 2));
-      const ddegX = (e.clientX - dragStart.x) / scale * R2D;
-      const ddegY = (e.clientY - dragStart.y) / scale * R2D;
+      const ppd = W / (HFOV * R2D);
+      const ddegX = (e.clientX - dragStart.x) / ppd;
+      const ddegY = (e.clientY - dragStart.y) / ppd;
       viewAz = n360(dragStart.az - ddegX);
       viewAlt = Math.max(-5, Math.min(85, dragStart.alt + ddegY));
       document.getElementById('h-lun').textContent = `FACING  ${compassDir(viewAz)}  (${viewAz.toFixed(0)}\u00b0)  ALT ${viewAlt.toFixed(0)}\u00b0`;
