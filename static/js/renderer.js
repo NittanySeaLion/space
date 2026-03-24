@@ -33,9 +33,8 @@ function pxPerDeg() { return W / (HFOV * R2D); }
 function computeViewAlt() {
   const skyH = H * (1 - GROUND_FRAC);
   const vfovSky = skyH / pxPerDeg();  // vertical FOV in degrees
-  // Center between horizon (0°) and Earth (~67°), biased slightly low
-  // so horizon is near the bottom of sky zone
-  return Math.min(55, Math.max(20, Math.min(67, vfovSky) * 0.47));
+  // Center between horizon (0°) and Earth (~67°), biased to keep Earth in frame
+  return Math.min(55, Math.max(25, Math.min(67, vfovSky) * 0.52));
 }
 
 // ── Projection (equirectangular, mapped to sky zone) ────────────────────────

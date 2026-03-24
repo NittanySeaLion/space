@@ -6,25 +6,12 @@ let viewAlt = 35;   // initial; recomputed by computeViewAlt() after resize
 let showLabels = true;
 let showEvents = false;
 
-// ── Drag to pan azimuth ─────────────────────────────────────────────────────
+// ── Drag disabled — fixed view facing Earth ─────────────────────────────────
 let dragStart = null;
 
 function initDrag(cv) {
-  cv.addEventListener('mousedown', e => {
-    dragStart = { x: e.clientX, y: e.clientY, az: viewAz, alt: viewAlt };
-  });
-  cv.addEventListener('mousemove', e => {
-    if (dragStart) {
-      const ppd = W / (HFOV * R2D);
-      const ddegX = (e.clientX - dragStart.x) / ppd;
-      const ddegY = (e.clientY - dragStart.y) / ppd;
-      viewAz = n360(dragStart.az - ddegX);
-      viewAlt = Math.max(-5, Math.min(85, dragStart.alt + ddegY));
-      document.getElementById('h-lun').textContent = `FACING  ${compassDir(viewAz)}  (${viewAz.toFixed(0)}\u00b0)  ALT ${viewAlt.toFixed(0)}\u00b0`;
-    }
-  });
-  cv.addEventListener('mouseup', () => { dragStart = null; });
-  cv.addEventListener('mouseleave', () => { dragStart = null; document.getElementById('tooltip').style.display = 'none'; });
+  // No drag panning — view is locked on Earth direction
+  cv.addEventListener('mouseleave', () => { document.getElementById('tooltip').style.display = 'none'; });
 }
 
 // ── Tooltip ─────────────────────────────────────────────────────────────────
