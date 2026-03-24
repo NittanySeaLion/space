@@ -6,8 +6,9 @@ import os
 import time
 import threading
 import logging
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, send_file, Response
 import requests
+import io
 
 app = Flask(__name__)
 
@@ -118,6 +119,68 @@ def ephemeris():
         return jsonify({'status': 'ok', 'source': 'horizons', 'bodies': data})
     # Return empty on failure — frontend falls back to VSOP87
     return jsonify({'status': 'fallback', 'source': 'vsop87', 'bodies': {}})
+
+
+# ── DSCOVR/EPIC Earth image cache ────────────────────────────────────────────
+EPIC_CACHE_TTL = 3600  # 1 hour — EPIC updates ~every 2 hours
+_epic_cache = {'data': None, 'ts': 0, 'content_type': 'image/png'}
+_epic_lock = threading.Lock()
+
+
+def _fetch_epic_image():
+    """Fetch latest DSCOVR/EPIC full-disk Earth image from NASA."""
+    try:
+        # Get list of recent images
+        resp = requests.get(
+            'https://epic.gsfc.nasa.gov/api/natural',
+            timeout=10
+        )
+        images = resp.json()
+        if not images:
+            log.warning('EPIC API returned no images')
+            return None
+
+        # Use most recent image
+        latest = images[0]
+        img_name = latest['image']
+        date_str = latest['date']  # "2026-03-24 00:41:23"
+        date_parts = date_str.split(' ')[0].split('-')
+        year, month, day = date_parts[0], date_parts[1], date_parts[2]
+
+        # Fetch the actual image (use 'thumbs' for smaller size, ~100KB vs ~2MB for png)
+        img_url = f'https://epic.gsfc.nasa.gov/archive/natural/{year}/{month}/{day}/thumbs/{img_name}.jpg'
+        img_resp = requests.get(img_url, timeout=15)
+        if img_resp.status_code == 200:
+            log.info(f'EPIC Earth image fetched: {img_name} ({len(img_resp.content)} bytes)')
+            return img_resp.content
+        else:
+            log.warning(f'EPIC image fetch failed: {img_resp.status_code}')
+            return None
+    except Exception as e:
+        log.warning(f'EPIC fetch error: {e}')
+        return None
+
+
+@app.route('/api/earth-image')
+def earth_image():
+    """Serve cached DSCOVR/EPIC Earth photo."""
+    now = time.time()
+    with _epic_lock:
+        if now - _epic_cache['ts'] < EPIC_CACHE_TTL and _epic_cache['data']:
+            return Response(_epic_cache['data'], mimetype='image/jpeg',
+                          headers={'Cache-Control': 'public, max-age=3600'})
+
+    # Fetch outside lock
+    data = _fetch_epic_image()
+    if data:
+        with _epic_lock:
+            _epic_cache['data'] = data
+            _epic_cache['ts'] = time.time()
+        return Response(data, mimetype='image/jpeg',
+                       headers={'Cache-Control': 'public, max-age=3600'})
+
+    # Return 204 if no image available — client uses procedural fallback
+    return Response(status=204)
 
 
 # ── Background refresh thread ────────────────────────────────────────────────

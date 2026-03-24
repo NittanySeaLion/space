@@ -1,7 +1,8 @@
 'use strict';
 
 // ── View state ──────────────────────────────────────────────────────────────
-let viewAz = 270;  // default facing West — Earth hangs near zenith at ~67° alt
+let viewAz = 270;   // default facing West — Earth direction from Tranquility Base
+let viewAlt = 35;   // pitch up 35° — shows both horizon and Earth at ~67° alt
 let showLabels = true;
 let showEvents = false;
 
@@ -10,14 +11,16 @@ let dragStart = null;
 
 function initDrag(cv) {
   cv.addEventListener('mousedown', e => {
-    dragStart = { x: e.clientX, az: viewAz };
+    dragStart = { x: e.clientX, y: e.clientY, az: viewAz, alt: viewAlt };
   });
   cv.addEventListener('mousemove', e => {
     if (dragStart) {
       const scale = W / (2 * Math.tan(HFOV / 2));
-      const ddeg = (e.clientX - dragStart.x) / scale * R2D;
-      viewAz = n360(dragStart.az - ddeg);
-      document.getElementById('h-lun').textContent = `FACING  ${compassDir(viewAz)}  (${viewAz.toFixed(0)}\u00b0)`;
+      const ddegX = (e.clientX - dragStart.x) / scale * R2D;
+      const ddegY = (e.clientY - dragStart.y) / scale * R2D;
+      viewAz = n360(dragStart.az - ddegX);
+      viewAlt = Math.max(-5, Math.min(85, dragStart.alt + ddegY));
+      document.getElementById('h-lun').textContent = `FACING  ${compassDir(viewAz)}  (${viewAz.toFixed(0)}\u00b0)  ALT ${viewAlt.toFixed(0)}\u00b0`;
     }
   });
   cv.addEventListener('mouseup', () => { dragStart = null; });
