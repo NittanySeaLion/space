@@ -298,15 +298,6 @@ function drawHorizon() {
 
   cx.restore();
 
-  // Soft horizon blend
-  const seamH = Math.min(15, surfH * 0.12);
-  const seam = cx.createLinearGradient(0, groundY - seamH * 0.5, 0, groundY + seamH);
-  seam.addColorStop(0, 'rgba(0,0,0,0)');
-  seam.addColorStop(0.4, 'rgba(0,0,0,0.25)');
-  seam.addColorStop(1, 'rgba(0,0,0,0)');
-  cx.fillStyle = seam;
-  cx.fillRect(0, groundY - seamH * 0.5, W, seamH * 1.5);
-
   // Compass bearings
   if (showLabels) {
     const ppd = pxPerDeg();
