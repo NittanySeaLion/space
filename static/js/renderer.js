@@ -298,6 +298,14 @@ function drawHorizon() {
 
   cx.restore();
 
+  // Feather top edge of panorama into sky (no hard line)
+  const fadeH = Math.max(8, surfH * 0.15);
+  const fade = cx.createLinearGradient(0, groundY, 0, groundY + fadeH);
+  fade.addColorStop(0, 'rgba(0,0,0,1)');
+  fade.addColorStop(1, 'rgba(0,0,0,0)');
+  cx.fillStyle = fade;
+  cx.fillRect(0, groundY, W, fadeH);
+
   // Compass bearings
   if (showLabels) {
     const ppd = pxPerDeg();
