@@ -28,4 +28,4 @@ const SYNODIC          = 29.530588853;       // days
 const JD_NEWMOON_REF  = 2451550.2597;       // Jan 6 2000 18:14 UTC
 
 // ── Projection ──────────────────────────────────────────────────────────────
-const HFOV = 150 * D2R;   // horizontal field of view (radians) — wide azimuth, equirectangular
+const HFOV = 90 * D2R;    // horizontal field of view (radians) — natural human perspective

@@ -29,11 +29,11 @@ function rg(x, y, r0, r1, stops) {
 // Pixels per degree (uniform angular scale, no edge distortion)
 function pxPerDeg() { return W / (HFOV * R2D); }
 
-// Compute viewAlt so horizon-hugging Earth (0° ± 7° libration) is centered
+// Compute viewAlt so Earth (~0° ± 7° libration) sits in lower sky above panorama
 function computeViewAlt() {
   const skyH = H * (1 - GROUND_FRAC);
   const vfovSky = skyH / pxPerDeg();  // vertical FOV in degrees
-  // Center slightly above horizon so Earth's libration range is in lower third
+  // Earth bobs around 0°; place it ~80% down the sky zone
   return vfovSky * 0.3;
 }
 
@@ -239,17 +239,17 @@ function drawHorizon() {
   const groundY = Math.round(H * (1 - GROUND_FRAC));
   const surfH = H - groundY;
 
-  // Compute sun lighting for surface
+  // Shackleton Crater floor is permanently shadowed — no direct sunlight ever.
+  // Only earthshine provides illumination.
   const jdNow = toJD(new Date());
-  const sunAlt = sunAltitude(jdNow);
   const pf = moonPhaseFrac(jdNow);
   const eIllum = earthIllumination(pf);
 
-  let sunBright = 0;
-  if (sunAlt > 5)       sunBright = 1.0;
-  else if (sunAlt > -2) sunBright = (sunAlt + 2) / 7;
-  const earthshineBright = (1 - sunBright) * eIllum * 0.12;
-  const darkOverlay = 1.0 - Math.max(0.08, sunBright * 0.85 + earthshineBright);
+  // Earth must be above horizon to illuminate the ground
+  const eAlt = earthFromMoon(jdNow).alt;
+  const earthVisible = eAlt > 0 ? Math.min(1, eAlt / 5) : 0;
+  const earthshineBright = earthVisible * eIllum * 0.15;
+  const darkOverlay = 1.0 - Math.max(0.03, earthshineBright);
 
   // Clip to ground zone
   cx.save();
@@ -278,15 +278,6 @@ function drawHorizon() {
   if (earthshineBright > 0.01) {
     cx.fillStyle = `rgba(40,80,160,${(earthshineBright * 0.4).toFixed(3)})`;
     cx.fillRect(0, groundY, W, surfH);
-  }
-
-  // Golden hour tint at low sun angles
-  if (sunAlt > -2 && sunAlt < 12) {
-    const golden = Math.max(0, 1 - abs(sunAlt - 3) / 10) * 0.12;
-    if (golden > 0.005) {
-      cx.fillStyle = `rgba(200,140,50,${golden.toFixed(3)})`;
-      cx.fillRect(0, groundY, W, surfH);
-    }
   }
 
   // Bottom vignette
