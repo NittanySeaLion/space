@@ -10,7 +10,6 @@ function resize() {
   CX = W / 2;
   CY = H / 2;
   SR = Math.min(W, H) / 2;
-  // Recompute viewAlt so horizon-hugging Earth fits in sky zone on any aspect ratio
   viewAlt = computeViewAlt();
 }
 resize();
@@ -20,7 +19,6 @@ window.addEventListener('resize', resize);
 let bodies = [];
 let ff = true;
 let lastBodyJD = 0;
-let lastViewAz = -1;
 
 function computeBodies(jd) {
   const lst = lunarLST(jd, OBS.lon), lat = OBS.lat, res = [];
@@ -39,7 +37,6 @@ function computeBodies(jd) {
 
   const em = earthFromMoon(jd);
   const moon = moonPos(jd);
-  // Use direct selenographic alt/az when available (more accurate than RA/Dec→altaz)
   const ea = em.directAltAz ? { alt: em.alt, az: em.az } : altaz(em.ra, em.dec, lat, lst);
   res.push({ ...PDEF[8], ra: em.ra, dec: em.dec, ...ea, phase: moon.phase, isEarth: true });
   return res;
@@ -59,6 +56,24 @@ async function fetchEphemeris() {
   } catch(_) {}
 }
 
+// ── Dynamic text from location config ───────────────────────────────────────
+function initLocationText() {
+  document.title = 'Lunar Sky \u2014 ' + LOC.name;
+  const badge = document.getElementById('mission-badge');
+  if (badge) badge.innerHTML = `${LOC.name} \u00b7 ${LOC.subtitle} \u00b7 ${LOC.coordStr}<br>${LOC.badge} \u00b7 HOUSTON TIME (CDT/CST)`;
+  const hudName = document.querySelector('#hud .hc.r .bright');
+  if (hudName) hudName.textContent = LOC.name;
+  const epTitle = document.querySelector('.ep-title');
+  if (epTitle) epTitle.textContent = LOC.name + '  EVENTS';
+  const epNote = document.getElementById('ep-note');
+  if (epNote) epNote.textContent = LOC.eventsNote;
+
+  // Highlight active location button
+  document.querySelectorAll('.loc-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.loc === LOC.key);
+  });
+}
+
 // ── Render loop ─────────────────────────────────────────────────────────────
 function render(ts) {
   cx.clearRect(0, 0, W, H);
@@ -74,21 +89,25 @@ function render(ts) {
     lastBodyJD = jd;
   }
 
+  // Track Earth azimuth for locations without fixed viewAz
+  if (LOC.fixedViewAz === null) {
+    const earthBody = bodies.find(b => b.isEarth);
+    if (earthBody) viewAz = earthBody.az;
+  }
+
   drawMW(lst, OBS.lat);
 
-  // Stars — perfectly steady, no scintillation on airless Moon
+  // Stars
+  const skyBottom = H * (1 - GROUND_FRAC);
   for (let i = 0; i < STARS.length; i++) {
     const s = STARS[i];
     const aa = altaz(s.ra, s.dec, OBS.lat, lst);
     if (aa.alt < 0 || !inView(aa.alt, aa.az)) continue;
     const { x, y } = proj(aa.alt, aa.az);
-    const skyBottom = H * (1 - GROUND_FRAC);
     if (x < -20 || x > W+20 || y < -20 || y > skyBottom) continue;
-    // No atmosphere — stars are full brightness immediately above horizon
     const ext = Math.min(1, Math.max(0, (aa.alt + 0.2) / 0.8));
     const baseA = Math.min(1, Math.max(0, (7.0 - s.mag) / 6.0)) * ext;
     drawStar(x, y, Math.max(.4, 3.2 - s.mag * .52), bv2rgb(s.bv), Math.min(1, baseA * 1.2));
-    // Star name labels for bright named stars
     if (showLabels && s.name && s.mag < 2.5) {
       cx.font = '8px Courier New';
       cx.fillStyle = `rgba(170,195,230,${Math.min(.55, baseA * .5)})`;
@@ -109,12 +128,10 @@ function render(ts) {
   const z = n => String(n).padStart(2, '0');
   document.getElementById('ht-houston').textContent = houstonTime(now);
   document.getElementById('ht-utc').textContent = `${now.getUTCFullYear()}-${z(now.getUTCMonth()+1)}-${z(now.getUTCDate())} ${z(now.getUTCHours())}:${z(now.getUTCMinutes())}:${z(now.getUTCSeconds())} UTC`;
-
   document.getElementById('h-lun').textContent = `FACING  ${compassDir(viewAz)}  (${viewAz.toFixed(0)}\u00b0)`;
 
   updateEventsPanel(jd);
 
-  // Dismiss overlay on first frame
   if (ff) {
     ff = false;
     const ov = document.getElementById('ov');
@@ -125,12 +142,12 @@ function render(ts) {
 }
 
 // ── Init ────────────────────────────────────────────────────────────────────
+initLocationText();
 initDrag(cv);
 initTooltip(cv, () => bodies);
 initFullscreen();
 loadPhotos();
 requestAnimationFrame(render);
 
-// Fetch from server cache instead of hitting NASA directly
 setTimeout(fetchEphemeris, 800);
 setInterval(fetchEphemeris, 5 * 60 * 1000);

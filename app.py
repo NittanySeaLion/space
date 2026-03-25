@@ -1,5 +1,5 @@
 """
-Lunar Sky — Shackleton Crater
+Lunar Sky — Multi-location lunar sky visualization
 Flask app serving the visualization + cached NASA Horizons ephemeris data.
 """
 import os
@@ -123,7 +123,7 @@ def ephemeris():
 
 # ── DSCOVR/EPIC Earth image cache ────────────────────────────────────────────
 EPIC_CACHE_TTL = 3600  # 1 hour — EPIC updates ~every 2 hours
-_epic_cache = {'data': None, 'ts': 0, 'content_type': 'image/png'}
+_epic_cache = {'data': None, 'ts': 0, 'capture_time': ''}
 _epic_lock = threading.Lock()
 
 
@@ -152,7 +152,7 @@ def _fetch_epic_image():
         img_resp = requests.get(img_url, timeout=15)
         if img_resp.status_code == 200:
             log.info(f'EPIC Earth image fetched: {img_name} ({len(img_resp.content)} bytes)')
-            return img_resp.content
+            return {'data': img_resp.content, 'capture_time': date_str}
         else:
             log.warning(f'EPIC image fetch failed: {img_resp.status_code}')
             return None
@@ -163,21 +163,28 @@ def _fetch_epic_image():
 
 @app.route('/api/earth-image')
 def earth_image():
-    """Serve cached DSCOVR/EPIC Earth photo."""
+    """Serve cached DSCOVR/EPIC Earth photo with capture timestamp."""
     now = time.time()
     with _epic_lock:
         if now - _epic_cache['ts'] < EPIC_CACHE_TTL and _epic_cache['data']:
             return Response(_epic_cache['data'], mimetype='image/jpeg',
-                          headers={'Cache-Control': 'public, max-age=3600'})
+                          headers={
+                              'Cache-Control': 'public, max-age=3600',
+                              'X-EPIC-Capture-Time': _epic_cache.get('capture_time', ''),
+                          })
 
     # Fetch outside lock
-    data = _fetch_epic_image()
-    if data:
+    result = _fetch_epic_image()
+    if result:
         with _epic_lock:
-            _epic_cache['data'] = data
+            _epic_cache['data'] = result['data']
+            _epic_cache['capture_time'] = result['capture_time']
             _epic_cache['ts'] = time.time()
-        return Response(data, mimetype='image/jpeg',
-                       headers={'Cache-Control': 'public, max-age=3600'})
+        return Response(result['data'], mimetype='image/jpeg',
+                       headers={
+                           'Cache-Control': 'public, max-age=3600',
+                           'X-EPIC-Capture-Time': result['capture_time'],
+                       })
 
     # Return 204 if no image available — client uses procedural fallback
     return Response(status=204)

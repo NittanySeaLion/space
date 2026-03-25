@@ -1,7 +1,7 @@
 'use strict';
 
 // ── View state ──────────────────────────────────────────────────────────────
-let viewAz = 0;     // default facing North — Earth direction from south pole
+let viewAz = LOC.fixedViewAz !== null ? LOC.fixedViewAz : 0;  // set from location config
 let viewAlt = 35;   // initial; recomputed by computeViewAlt() after resize
 let showLabels = true;
 let showEvents = false;

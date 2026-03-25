@@ -16,9 +16,6 @@ const PDEF = [
 // ── Canvas globals (set by main.js resize) ──────────────────────────────────
 let W, H, CX, CY, SR;
 
-// Fixed ground zone: panorama occupies bottom portion of screen
-const GROUND_FRAC = 0.14;  // bottom 14% — cropped for more sky
-
 function rg(x, y, r0, r1, stops) {
   const g = cx.createRadialGradient(x, y, r0, x, y, r1);
   stops.forEach(([t, c]) => g.addColorStop(t, c));
@@ -26,14 +23,13 @@ function rg(x, y, r0, r1, stops) {
 }
 
 // ── Equirectangular projection helpers ──────────────────────────────────────
-// Pixels per degree (uniform angular scale, no edge distortion)
 function pxPerDeg() { return W / (HFOV * R2D); }
 
-// Compute viewAlt so Earth (~0° ± 7° libration) sits in lower sky above panorama
 function computeViewAlt() {
+  if (LOC.fixedViewAlt !== null) return LOC.fixedViewAlt;
   const skyH = H * (1 - GROUND_FRAC);
-  const vfovSky = skyH / pxPerDeg();  // vertical FOV in degrees
-  // Earth bobs around 0°; place it ~80% down the sky zone
+  const vfovSky = skyH / pxPerDeg();
+  // Earth near horizon — place it in lower third of sky zone
   return vfovSky * 0.3;
 }
 
@@ -72,37 +68,53 @@ function drawStar(x, y, sz, rgb, alpha) {
   cx.fillStyle = `rgba(255,255,255,${alpha*.98})`; cx.fill();
 }
 
-// ── Draw Earth (phase-correct, EPIC photo or procedural) ────────────────────
+// ── Draw Earth (phase-correct, rotating EPIC photo or procedural) ───────────
 let earthImg = null;
 let earthImgLoading = false;
+let earthCaptureTime = null;  // milliseconds since epoch
 
 function fetchEarthImage() {
   if (earthImgLoading) return;
   earthImgLoading = true;
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.onload = () => { earthImg = img; };
-  img.onerror = () => { earthImgLoading = false; };
-  img.src = '/api/earth-image';
+  fetch('/api/earth-image')
+    .then(resp => {
+      const ct = resp.headers.get('X-EPIC-Capture-Time');
+      if (ct) earthCaptureTime = new Date(ct.replace(' ', 'T') + 'Z').getTime();
+      return resp.blob();
+    })
+    .then(blob => {
+      if (blob.size < 100) { earthImgLoading = false; return; }
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => { earthImg = img; };
+      img.onerror = () => { earthImgLoading = false; };
+      img.src = url;
+    })
+    .catch(() => { earthImgLoading = false; });
 }
 
 function drawEarth(x, y, alt, az, phase) {
   if (alt < -2 || !inView(alt, az)) return;
-  // Earth is ~1.9° angular diameter from Moon — 1.6x boost for readability
   const r = Math.max(8, 0.95 * pxPerDeg() * 1.6);
-
-  // No halo — Earth rendered clean
 
   cx.save();
   cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.clip();
 
   if (earthImg) {
+    // Rotate Earth image based on elapsed time since EPIC capture
+    cx.save();
+    cx.translate(x, y);
+    if (earthCaptureTime) {
+      const elapsedHrs = (Date.now() - earthCaptureTime) / 3600000;
+      cx.rotate(-elapsedHrs * 15 * D2R);  // Earth rotates 15°/hr west-to-east
+    }
     const imgSz = Math.min(earthImg.naturalWidth, earthImg.naturalHeight);
     const sx = (earthImg.naturalWidth - imgSz) / 2;
     const sy = (earthImg.naturalHeight - imgSz) / 2;
-    cx.drawImage(earthImg, sx, sy, imgSz, imgSz, x-r, y-r, r*2, r*2);
+    cx.drawImage(earthImg, sx, sy, imgSz, imgSz, -r, -r, r*2, r*2);
+    cx.restore();
   } else {
-    // Procedural blue marble
+    // Procedural blue marble fallback
     const earthGrd = rg(x-r*.3, y-r*.3, r*.1, r*1.1, [
       [0,'rgba(130,180,255,1)'],[.25,'rgba(70,140,230,1)'],[.55,'rgba(30,90,200,1)'],[1,'rgba(10,50,150,1)']
     ]);
@@ -110,18 +122,9 @@ function drawEarth(x, y, alt, az, phase) {
     cx.fillStyle = 'rgba(50,120,50,.65)';
     const patches = [[-.3,-.2,.25,.18],[.05,-.3,.32,.22],[-.5,.05,.18,.28],[.3,.1,.22,.16],[-.1,.25,.28,.16],[.25,-.15,.15,.2]];
     patches.forEach(([ox,oy,w,h]) => { cx.beginPath(); cx.ellipse(x+ox*r, y+oy*r, w*r, h*r, ox*.5, 0, TAU); cx.fill(); });
-    cx.strokeStyle = 'rgba(255,255,255,.2)';
-    cx.lineWidth = r * 0.03;
-    for (let i = 0; i < 5; i++) {
-      const cy2 = y + (i - 2) * r * 0.3;
-      cx.beginPath();
-      cx.moveTo(x - r * 0.7, cy2);
-      cx.quadraticCurveTo(x + (i % 2 ? .3 : -.2) * r, cy2 + r * 0.1, x + r * 0.6, cy2 + r * 0.05);
-      cx.stroke();
-    }
   }
 
-  // Phase terminator
+  // Phase terminator (not rotated — based on Sun-Earth-Moon geometry)
   const phaseAngle = phase * TAU;
   cx.fillStyle = 'rgba(0,0,0,.82)';
   cx.beginPath();
@@ -133,7 +136,6 @@ function drawEarth(x, y, alt, az, phase) {
 
   cx.restore();
 
-  // Label — position away from screen edge
   if (showLabels) {
     cx.font = '10px Courier New';
     cx.fillStyle = 'rgba(150,200,255,.6)';
@@ -221,37 +223,53 @@ let panoramaImg = null;
 let panoramaReady = false;
 
 function loadPhotos() {
-  const img = new Image();
-  img.onload = () => {
-    panoramaImg = img;
-    panoramaReady = true;
-    document.getElementById('hsrc').textContent = 'ALDRIN PANORAMA \u00b7 LUNAR SURFACE';
-  };
-  img.onerror = () => {
-    document.getElementById('hsrc').textContent = 'SHACKLETON CRATER';
-  };
-  img.src = '/static/photos/panorama.jpg';
+  if (LOC.hasPanorama) {
+    const img = new Image();
+    img.onload = () => {
+      panoramaImg = img;
+      panoramaReady = true;
+      document.getElementById('hsrc').textContent = 'ALDRIN PANORAMA \u00b7 LUNAR SURFACE';
+    };
+    img.onerror = () => {
+      document.getElementById('hsrc').textContent = LOC.name;
+    };
+    img.src = '/static/photos/panorama.jpg';
+  }
   fetchEarthImage();
 }
 
-// ── Draw lunar surface (fixed screen position, bottom 22%) ──────────────────
+// ── Draw lunar surface ──────────────────────────────────────────────────────
 function drawHorizon() {
+  if (GROUND_FRAC <= 0) return;  // Tranquility mode: no ground
+
   const groundY = Math.round(H * (1 - GROUND_FRAC));
   const surfH = H - groundY;
 
-  // Shackleton Crater floor is permanently shadowed — no direct sunlight ever.
-  // Only earthshine provides illumination.
   const jdNow = toJD(new Date());
   const pf = moonPhaseFrac(jdNow);
   const eIllum = earthIllumination(pf);
 
-  // Earth must be above horizon to illuminate the ground
-  const eAlt = earthFromMoon(jdNow).alt;
-  const earthVisible = eAlt > 0 ? Math.min(1, eAlt / 5) : 0;
-  const earthshineBright = earthVisible * eIllum * 0.15;
-  const darkOverlay = 1.0 - Math.max(0.03, earthshineBright);
+  let darkOverlay, earthshineBright;
 
-  // Clip to ground zone
+  if (LOC.shadowedFloor) {
+    // Permanently shadowed crater — only earthshine illuminates
+    const eAlt = earthFromMoon(jdNow).alt;
+    const earthVisible = eAlt > 0 ? Math.min(1, eAlt / 5) : 0;
+    earthshineBright = earthVisible * eIllum * 0.15;
+    darkOverlay = 1.0 - Math.max(0.03, earthshineBright);
+  } else if (LOC.dayNightSurface) {
+    // Normal day/night cycle (Orientale, etc.)
+    const sunAlt = sunAltitude(jdNow);
+    let sunBright = 0;
+    if (sunAlt > 5) sunBright = 1.0;
+    else if (sunAlt > -2) sunBright = (sunAlt + 2) / 7;
+    earthshineBright = (1 - sunBright) * eIllum * 0.12;
+    darkOverlay = 1.0 - Math.max(0.08, sunBright * 0.85 + earthshineBright);
+  } else {
+    darkOverlay = 0;
+    earthshineBright = 0;
+  }
+
   cx.save();
   cx.beginPath(); cx.rect(0, groundY, W, surfH); cx.clip();
 
@@ -268,16 +286,26 @@ function drawHorizon() {
     cx.fillRect(0, groundY, W, surfH);
   }
 
-  // Lunar night darkening
   if (darkOverlay > 0.01) {
     cx.fillStyle = `rgba(0,0,0,${darkOverlay.toFixed(3)})`;
     cx.fillRect(0, groundY, W, surfH);
   }
 
-  // Earthshine blue tint during lunar night
   if (earthshineBright > 0.01) {
     cx.fillStyle = `rgba(40,80,160,${(earthshineBright * 0.4).toFixed(3)})`;
     cx.fillRect(0, groundY, W, surfH);
+  }
+
+  // Golden hour tint (only for locations with day/night cycle)
+  if (LOC.dayNightSurface) {
+    const sunAlt = sunAltitude(jdNow);
+    if (sunAlt > -2 && sunAlt < 12) {
+      const golden = Math.max(0, 1 - abs(sunAlt - 3) / 10) * 0.12;
+      if (golden > 0.005) {
+        cx.fillStyle = `rgba(200,140,50,${golden.toFixed(3)})`;
+        cx.fillRect(0, groundY, W, surfH);
+      }
+    }
   }
 
   // Bottom vignette
@@ -289,7 +317,7 @@ function drawHorizon() {
 
   cx.restore();
 
-  // Feather top edge of panorama into sky (no hard line)
+  // Feather top edge of panorama into sky
   const fadeH = Math.max(8, surfH * 0.15);
   const fade = cx.createLinearGradient(0, groundY, 0, groundY + fadeH);
   fade.addColorStop(0, 'rgba(0,0,0,1)');

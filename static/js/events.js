@@ -31,8 +31,7 @@ function nextSunEvent(jd, rising) {
 }
 
 function earthAltitude(jd) {
-  const em = earthFromMoon(jd);
-  return em.alt;
+  return earthFromMoon(jd).alt;
 }
 
 function nextEarthEvent(jd, rising) {
@@ -99,7 +98,7 @@ function updateEventsPanel(jd) {
   if (jdSunrise) {
     const cd = formatCountdown(jdSunrise, jd);
     const isSoon = (jdSunrise - jd) < 2;
-    srEl.innerHTML = `SUNRISE  <span class="${isSoon?'ep-soon':'ep-val'}">${cd}</span><br>` +
+    srEl.innerHTML = `${LOC.sunLabels[0]}  <span class="${isSoon?'ep-soon':'ep-val'}">${cd}</span><br>` +
       `<span class="ep-dim">${jdToHouston(jdSunrise)}</span>`;
   }
 
@@ -107,32 +106,36 @@ function updateEventsPanel(jd) {
   if (jdSunset) {
     const cd = formatCountdown(jdSunset, jd);
     const isSoon = (jdSunset - jd) < 2;
-    ssEl.innerHTML = `SUNSET   <span class="${isSoon?'ep-soon':'ep-val'}">${cd}</span><br>` +
+    ssEl.innerHTML = `${LOC.sunLabels[1]}  <span class="${isSoon?'ep-soon':'ep-val'}">${cd}</span><br>` +
       `<span class="ep-dim">${jdToHouston(jdSunset)}</span>`;
   }
 
-  // Earth altitude and direction
+  // Earth altitude
   const earthAbove = eAlt > 0;
   document.getElementById('ep-earthalt').innerHTML =
     `EARTH  <span class="ep-val">${eAlt.toFixed(1)}\u00b0 ALT</span>  ${earthAbove ? 'ABOVE' : 'BELOW'} HORIZON`;
 
-  // Earth rise/set events (libration-driven at the pole)
+  // Earth rise/set events (only meaningful where Earth moves near horizon)
   const earthEvEl = document.getElementById('ep-earthevent');
   if (earthEvEl) {
-    const jdEarthRise = nextEarthEvent(jd, true);
-    const jdEarthSet  = nextEarthEvent(jd, false);
-    const nextEv = [];
-    if (jdEarthRise) nextEv.push({ label: 'EARTHRISE', jd: jdEarthRise });
-    if (jdEarthSet)  nextEv.push({ label: 'EARTHSET',  jd: jdEarthSet });
-    nextEv.sort((a, b) => a.jd - b.jd);
-    if (nextEv.length) {
-      const ev = nextEv[0];
-      const cd = formatCountdown(ev.jd, jd);
-      const isSoon = (ev.jd - jd) < 2;
-      earthEvEl.innerHTML = `${ev.label}  <span class="${isSoon?'ep-soon':'ep-val'}">${cd}</span><br>` +
-        `<span class="ep-dim">${jdToHouston(ev.jd)}</span>`;
+    if (LOC.earthOnHorizon) {
+      const jdER = nextEarthEvent(jd, true);
+      const jdES = nextEarthEvent(jd, false);
+      const nextEv = [];
+      if (jdER) nextEv.push({ label: 'EARTHRISE', jd: jdER });
+      if (jdES) nextEv.push({ label: 'EARTHSET',  jd: jdES });
+      nextEv.sort((a, b) => a.jd - b.jd);
+      if (nextEv.length) {
+        const ev = nextEv[0];
+        const cd = formatCountdown(ev.jd, jd);
+        const isSoon = (ev.jd - jd) < 2;
+        earthEvEl.innerHTML = `${ev.label}  <span class="${isSoon?'ep-soon':'ep-val'}">${cd}</span><br>` +
+          `<span class="ep-dim">${jdToHouston(ev.jd)}</span>`;
+      } else {
+        earthEvEl.innerHTML = `<span class="ep-dim">NO EARTHRISE/SET FOUND</span>`;
+      }
     } else {
-      earthEvEl.innerHTML = `<span class="ep-dim">NO EARTHRISE/SET FOUND</span>`;
+      earthEvEl.innerHTML = `<span class="ep-dim">EARTH ALWAYS VISIBLE</span>`;
     }
   }
 
