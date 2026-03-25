@@ -1,7 +1,7 @@
 'use strict';
 
 // ── View state ──────────────────────────────────────────────────────────────
-let viewAz = 270;   // default facing West — Earth direction from Tranquility Base
+let viewAz = 0;     // default facing North — Earth direction from south pole
 let viewAlt = 35;   // initial; recomputed by computeViewAlt() after resize
 let showLabels = true;
 let showEvents = false;

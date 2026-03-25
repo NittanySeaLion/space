@@ -20,8 +20,8 @@ const floor = Math.floor;
 function n360(a) { return ((a % 360) + 360) % 360; }
 function toJD(d) { return d / 86400000 + 2440587.5; }
 
-// ── Observer: Apollo 11 landing site, Sea of Tranquility ────────────────────
-const OBS = { lat: 0.6741, lon: 23.4322, elev: 0.00 };  // deg, deg, km
+// ── Observer: Shackleton Crater, Lunar South Pole ───────────────────────────
+const OBS = { lat: -89.9, lon: 0.0, elev: 0.00 };  // deg, deg, km
 
 // ── Lunar synodic constants ─────────────────────────────────────────────────
 const SYNODIC          = 29.530588853;       // days

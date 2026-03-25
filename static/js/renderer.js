@@ -29,13 +29,12 @@ function rg(x, y, r0, r1, stops) {
 // Pixels per degree (uniform angular scale, no edge distortion)
 function pxPerDeg() { return W / (HFOV * R2D); }
 
-// Compute viewAlt so Earth (~67°) is visible, with horizon if possible
+// Compute viewAlt so horizon-hugging Earth (0° ± 7° libration) is centered
 function computeViewAlt() {
   const skyH = H * (1 - GROUND_FRAC);
   const vfovSky = skyH / pxPerDeg();  // vertical FOV in degrees
-  const earthAlt = 67;  // Earth's approximate altitude from Tranquility Base
-  // Place Earth 25% from top of sky zone so it's clearly visible
-  return earthAlt - vfovSky * 0.25;
+  // Center slightly above horizon so Earth's libration range is in lower third
+  return vfovSky * 0.3;
 }
 
 // ── Projection (equirectangular, mapped to sky zone) ────────────────────────
@@ -226,10 +225,10 @@ function loadPhotos() {
   img.onload = () => {
     panoramaImg = img;
     panoramaReady = true;
-    document.getElementById('hsrc').textContent = 'ALDRIN PANORAMA \u00b7 MARE TRANQUILLITATIS';
+    document.getElementById('hsrc').textContent = 'ALDRIN PANORAMA \u00b7 LUNAR SURFACE';
   };
   img.onerror = () => {
-    document.getElementById('hsrc').textContent = 'MARE TRANQUILLITATIS';
+    document.getElementById('hsrc').textContent = 'SHACKLETON CRATER';
   };
   img.src = '/static/photos/panorama.jpg';
   fetchEarthImage();
@@ -242,7 +241,7 @@ function drawHorizon() {
 
   // Compute sun lighting for surface
   const jdNow = toJD(new Date());
-  const sunAlt = sunAltTranquility(jdNow);
+  const sunAlt = sunAltitude(jdNow);
   const pf = moonPhaseFrac(jdNow);
   const eIllum = earthIllumination(pf);
 

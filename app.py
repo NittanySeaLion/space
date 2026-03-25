@@ -1,5 +1,5 @@
 """
-Lunar Sky — Sea of Tranquility
+Lunar Sky — Shackleton Crater
 Flask app serving the visualization + cached NASA Horizons ephemeris data.
 """
 import os
@@ -16,9 +16,9 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 log = logging.getLogger(__name__)
 
-# ── Observer: Apollo 11 landing site, Sea of Tranquility ─────────────────────
-OBS_LAT = 0.6741    # selenographic latitude (degrees)
-OBS_LON = 23.4322   # selenographic longitude (degrees)
+# ── Observer: Shackleton Crater, Lunar South Pole ────────────────────────────
+OBS_LAT = -89.9     # selenographic latitude (degrees)
+OBS_LON = 0.0       # selenographic longitude (degrees)
 
 # ── Horizons API cache ───────────────────────────────────────────────────────
 CACHE_TTL = 600  # seconds (10 minutes)

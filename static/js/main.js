@@ -10,7 +10,7 @@ function resize() {
   CX = W / 2;
   CY = H / 2;
   SR = Math.min(W, H) / 2;
-  // Recompute viewAlt so Earth (~67° alt) fits in sky zone on any aspect ratio
+  // Recompute viewAlt so horizon-hugging Earth fits in sky zone on any aspect ratio
   viewAlt = computeViewAlt();
 }
 resize();
@@ -39,7 +39,8 @@ function computeBodies(jd) {
 
   const em = earthFromMoon(jd);
   const moon = moonPos(jd);
-  const ea = altaz(em.ra, em.dec, lat, lst);
+  // Use direct selenographic alt/az when available (more accurate than RA/Dec→altaz)
+  const ea = em.directAltAz ? { alt: em.alt, az: em.az } : altaz(em.ra, em.dec, lat, lst);
   res.push({ ...PDEF[8], ra: em.ra, dec: em.dec, ...ea, phase: moon.phase, isEarth: true });
   return res;
 }

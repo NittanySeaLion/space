@@ -135,9 +135,41 @@ function moonPos(jd) {
 }
 
 // ── Earth position as seen from Moon ────────────────────────────────────────
+// Direct selenographic geometry — Earth is near the sub-Earth point (0°,0°)
+// plus optical libration.  The old moon.ra+180 approach gave wrong az/alt
+// when the Moon's geocentric declination was far from zero.
 function earthFromMoon(jd) {
   const moon = moonPos(jd);
-  return { ra: n360(moon.ra + 180), dec: -moon.dec, dist: moon.dist, phase: moon.phase, earthAngSize: 1.9 };
+  const T = (jd - 2451545.0) / 36525.0;
+  const Mp = n360(134.9633964 + 477198.8675055 * T) * D2R;
+
+  // Sub-Earth selenographic coords: (0°,0°) + optical libration
+  // Libration in longitude ≈ −2e·sin(M')  (e = 0.0549 → ±6.3°)
+  const subLon = -6.29 * sin(Mp);  // degrees
+  // Libration in latitude ≈ −6.69°·sin(F)  (Moon's orbit inclination + axial tilt)
+  const F = n360(93.2720950 + 483202.0175233 * ((jd - 2451545.0) / 36525.0)) * D2R;
+  const subLat = -6.69 * sin(F);   // degrees — critical at polar observer locations
+
+  const obsLatR = OBS.lat * D2R, obsLonR = OBS.lon * D2R;
+  const subLatR = subLat * D2R, subLonR = subLon * D2R;
+  const dlon = subLonR - obsLonR;
+
+  // Angular distance from observer to sub-Earth point
+  const cosDist = sin(obsLatR) * sin(subLatR) + cos(obsLatR) * cos(subLatR) * cos(dlon);
+  const angDist = acos(Math.max(-1, Math.min(1, cosDist)));
+  const alt = 90 - angDist * R2D;
+
+  // Bearing (azimuth) from observer to sub-Earth point
+  const y = sin(dlon) * cos(subLatR);
+  const x = cos(obsLatR) * sin(subLatR) - sin(obsLatR) * cos(subLatR) * cos(dlon);
+  const az = n360(atan2(y, x) * R2D);
+
+  // Keep equatorial RA/Dec for tooltip display
+  return {
+    ra: n360(moon.ra + 180), dec: -moon.dec,
+    alt, az, dist: moon.dist, phase: moon.phase, earthAngSize: 1.9,
+    directAltAz: true
+  };
 }
 
 // ── Lunar Local Sidereal Time ───────────────────────────────────────────────

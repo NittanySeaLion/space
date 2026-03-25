@@ -2,7 +2,7 @@
 
 // ── Lunar events panel ──────────────────────────────────────────────────────
 
-function sunAltTranquility(jd) {
+function sunAltitude(jd) {
   const pf = moonPhaseFrac(jd);
   const ssl = n360(pf * 360 - 180);
   const dlon = (OBS.lon - ssl) * D2R;
@@ -12,16 +12,16 @@ function sunAltTranquility(jd) {
 
 function nextSunEvent(jd, rising) {
   const step = 1/24;
-  let a0 = sunAltTranquility(jd);
+  let a0 = sunAltitude(jd);
   for (let i = 1; i < 750; i++) {
     const jd1 = jd + i * step;
-    const a1 = sunAltTranquility(jd1);
+    const a1 = sunAltitude(jd1);
     const cross = rising ? (a0 < 0 && a1 >= 0) : (a0 >= 0 && a1 < 0);
     if (cross) {
       let lo = jd + (i-1)*step, hi = jd1;
       for (let b = 0; b < 20; b++) {
         const mid = (lo + hi) / 2;
-        (sunAltTranquility(mid) < 0) === rising ? lo = mid : hi = mid;
+        (sunAltitude(mid) < 0) === rising ? lo = mid : hi = mid;
       }
       return (lo + hi) / 2;
     }
@@ -30,16 +30,29 @@ function nextSunEvent(jd, rising) {
   return null;
 }
 
-function earthAltFromTranquility(jd) {
-  const mp = moonPos(jd);
-  const libLon = -mp.lon / 15;
-  const libLat = mp.lat / 5;
-  const effLon = OBS.lon + libLon;
-  const effLat = OBS.lat - libLat;
-  const dLon = effLon * D2R;
-  const dLat = effLat * D2R;
-  const cosDist = cos(dLat) * cos(dLon);
-  return asin(Math.max(-1, Math.min(1, cosDist))) * R2D;
+function earthAltitude(jd) {
+  const em = earthFromMoon(jd);
+  return em.alt;
+}
+
+function nextEarthEvent(jd, rising) {
+  const step = 1/24;
+  let a0 = earthAltitude(jd);
+  for (let i = 1; i < 750; i++) {
+    const jd1 = jd + i * step;
+    const a1 = earthAltitude(jd1);
+    const cross = rising ? (a0 < 0 && a1 >= 0) : (a0 >= 0 && a1 < 0);
+    if (cross) {
+      let lo = jd + (i-1)*step, hi = jd1;
+      for (let b = 0; b < 20; b++) {
+        const mid = (lo + hi) / 2;
+        (earthAltitude(mid) < 0) === rising ? lo = mid : hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+    a0 = a1;
+  }
+  return null;
 }
 
 function formatCountdown(jdEvent, jdNow) {
@@ -65,8 +78,8 @@ function updateEventsPanel(jd) {
   lastEventUpdate = jd;
 
   const pf = moonPhaseFrac(jd);
-  const sunAlt = sunAltTranquility(jd);
-  const earthAlt = earthAltFromTranquility(jd);
+  const sunAlt = sunAltitude(jd);
+  const eAlt = earthAltitude(jd);
   const earthIllum = earthIllumination(pf);
 
   const jdSunrise = nextSunEvent(jd, true);
@@ -98,8 +111,30 @@ function updateEventsPanel(jd) {
       `<span class="ep-dim">${jdToHouston(jdSunset)}</span>`;
   }
 
+  // Earth altitude and direction
+  const earthAbove = eAlt > 0;
   document.getElementById('ep-earthalt').innerHTML =
-    `EARTH  <span class="ep-val">${earthAlt.toFixed(1)}\u00b0 ALT  W</span>`;
+    `EARTH  <span class="ep-val">${eAlt.toFixed(1)}\u00b0 ALT</span>  ${earthAbove ? 'ABOVE' : 'BELOW'} HORIZON`;
+
+  // Earth rise/set events (libration-driven at the pole)
+  const earthEvEl = document.getElementById('ep-earthevent');
+  if (earthEvEl) {
+    const jdEarthRise = nextEarthEvent(jd, true);
+    const jdEarthSet  = nextEarthEvent(jd, false);
+    const nextEv = [];
+    if (jdEarthRise) nextEv.push({ label: 'EARTHRISE', jd: jdEarthRise });
+    if (jdEarthSet)  nextEv.push({ label: 'EARTHSET',  jd: jdEarthSet });
+    nextEv.sort((a, b) => a.jd - b.jd);
+    if (nextEv.length) {
+      const ev = nextEv[0];
+      const cd = formatCountdown(ev.jd, jd);
+      const isSoon = (ev.jd - jd) < 2;
+      earthEvEl.innerHTML = `${ev.label}  <span class="${isSoon?'ep-soon':'ep-val'}">${cd}</span><br>` +
+        `<span class="ep-dim">${jdToHouston(ev.jd)}</span>`;
+    } else {
+      earthEvEl.innerHTML = `<span class="ep-dim">NO EARTHRISE/SET FOUND</span>`;
+    }
+  }
 
   const phaseNames = ['NEW','WAXING CRESCENT','FIRST QUARTER','WAXING GIBBOUS',
                       'FULL','WANING GIBBOUS','LAST QUARTER','WANING CRESCENT'];
