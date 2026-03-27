@@ -279,10 +279,11 @@ function drawHorizon() {
     }
   }
 
-  // Darken top edge of panorama (surface fades to black at horizon)
-  const surfFadeH = Math.max(15, surfH * 0.2);
+  // Darken top of panorama so it blends into dark sky at horizon
+  const surfFadeH = Math.max(30, surfH * 0.4);
   const surfFade = cx.createLinearGradient(0, groundY, 0, groundY + surfFadeH);
-  surfFade.addColorStop(0, 'rgba(0,0,0,0.7)');
+  surfFade.addColorStop(0, 'rgba(0,0,0,0.92)');
+  surfFade.addColorStop(0.35, 'rgba(0,0,0,0.4)');
   surfFade.addColorStop(1, 'rgba(0,0,0,0)');
   cx.fillStyle = surfFade;
   cx.fillRect(0, groundY, W, surfFadeH);
@@ -296,13 +297,7 @@ function drawHorizon() {
 
   cx.restore();
 
-  // Darken sky just above horizon (sky fades to black at ground line)
-  const skyFadeH = Math.max(20, surfH * 0.25);
-  const skyFade = cx.createLinearGradient(0, groundY - skyFadeH, 0, groundY);
-  skyFade.addColorStop(0, 'rgba(0,0,0,0)');
-  skyFade.addColorStop(1, 'rgba(0,0,0,0.5)');
-  cx.fillStyle = skyFade;
-  cx.fillRect(0, groundY - skyFadeH, W, skyFadeH);
+  // No sky-side fade — the Moon has no atmosphere, sky stays uniform to horizon
 
   // Compass bearings
   if (showLabels) {
