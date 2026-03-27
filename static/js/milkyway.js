@@ -64,8 +64,18 @@ function renderMWToCache(lst, lat) {
   mwLastAz = viewAz;
 }
 
+let mwDeferred = true;  // skip first few frames so sky loads fast
+let mwFrameCount = 0;
+
 function drawMW(lst, lat) {
   if (!mwReady) return;
+
+  // Defer MW rendering — let stars/Earth paint first
+  if (mwDeferred) {
+    mwFrameCount++;
+    if (mwFrameCount < 10) return;  // skip first ~10 frames
+    mwDeferred = false;
+  }
 
   // Re-render cache if LST or viewAz changed significantly, or canvas resized
   const needsUpdate = !mwCanvas ||
