@@ -111,7 +111,9 @@ function drawEarth(x, y, alt, az, phase) {
     const imgSz = Math.min(earthImg.naturalWidth, earthImg.naturalHeight);
     const sx = (earthImg.naturalWidth - imgSz) / 2;
     const sy = (earthImg.naturalHeight - imgSz) / 2;
-    cx.drawImage(earthImg, sx, sy, imgSz, imgSz, -r, -r, r*2, r*2);
+    // Scale up 15% so Earth disk overfills clip (EPIC has black space at edges)
+    const rs = r * 1.15;
+    cx.drawImage(earthImg, sx, sy, imgSz, imgSz, -rs, -rs, rs*2, rs*2);
     cx.restore();
   } else {
     // Procedural blue marble fallback
@@ -291,10 +293,10 @@ function drawHorizon() {
 
   cx.restore();
 
-  // Feather top edge of panorama into sky
-  const fadeH = Math.max(8, surfH * 0.15);
+  // Feather top edge of panorama into sky (soft blend, not hard black line)
+  const fadeH = Math.max(12, surfH * 0.18);
   const fade = cx.createLinearGradient(0, groundY, 0, groundY + fadeH);
-  fade.addColorStop(0, 'rgba(0,0,0,1)');
+  fade.addColorStop(0, 'rgba(0,0,0,0.5)');
   fade.addColorStop(1, 'rgba(0,0,0,0)');
   cx.fillStyle = fade;
   cx.fillRect(0, groundY, W, fadeH);
