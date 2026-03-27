@@ -58,7 +58,7 @@ function renderMWToCache(lst, lat) {
   for (let sy = 0; sy < skyH; sy += stride) {
     const dalt = (skyH / 2 - sy) / ppd;
     const alt  = viewAlt + dalt;
-    if (alt < -5 || alt > 92) continue;
+    if (alt < -20 || alt > 92) continue;  // render below horizon — panorama covers it
 
     const altR   = alt * D2R;
     const sinAlt = sin(altR);
