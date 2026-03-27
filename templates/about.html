@@ -52,16 +52,18 @@ The Apollo 11 landing site. From here, the Earth hangs at roughly 67&deg; altitu
 <ul>
 <li><strong>Real:</strong> Star positions, planet positions, Earth phase, Earth altitude/azimuth, sunrise/sunset timing, libration effects, earthshine brightness</li>
 <li><strong>Approximate:</strong> Earth rotation (15&deg;/hr from EPIC capture time), Milky Way rendering, libration amplitude</li>
-<li><strong>Artistic license:</strong> Earth rendered at 1.6&times; true angular size, panorama reused across locations (Apollo 11 photo regardless of site), star glow halos</li>
+<li><strong>Artistic license:</strong> Earth rendered at 1.6&times; true angular size, star glow halos</li>
 </ul>
+
+<h2>LUNAR SURFACE PANORAMA</h2>
+
+<p>The horizon panorama used at all locations is a single photograph taken by Buzz Aldrin during the Apollo 11 mission at the Sea of Tranquility. It does not represent the actual surface at Shackleton Crater or Mare Orientale &mdash; no boots-on-the-ground photography exists for those locations. At Shackleton, the panorama is darkened to near-black to reflect the permanent shadow of the crater floor. At Mare Orientale, it cycles between lit and dark with the 29.5-day lunar day.</p>
 
 <h2>TECHNICAL NOTES</h2>
 
 <p>Everything runs in the browser via HTML5 Canvas. The server (Flask on GCP e2-micro) only provides cached Horizons data and EPIC Earth images. No WebGL, no Three.js &mdash; just 2D canvas and math.</p>
 
 <p>The lunar local sidereal time computation accounts for the Moon's synchronous rotation, converting Earth-centric RA/Dec coordinates into selenographic alt/azimuth. Earth's position is computed directly from selenographic geometry rather than the inverse-Moon approach, which is more accurate for limb and polar observers.</p>
-
-<p class="dim" style="margin-top:32px">Built by Jim Wilson &middot; 2026 &middot; <a href="https://github.com/NittanySeaLion/space">Source on GitHub</a></p>
 
 </div>
 </body>

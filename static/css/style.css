@@ -71,14 +71,14 @@ canvas{display:block;width:100%;height:100%}
 .loc-btn:hover{border-color:rgba(100,160,240,.7);color:rgba(220,240,255,1)}
 .loc-btn.active{border-color:rgba(100,160,240,.8);color:rgba(235,245,255,.98);background:rgba(20,40,80,.6)}
 
-/* ── About link ─────────────────────────────────────────────────────────── */
+/* ── About link (upper right, desktop) ───────────────────────────────────── */
 #about-link{
-  position:fixed;bottom:8px;left:50%;transform:translateX(-50%);
-  z-index:10;font-family:'Courier New',monospace;font-size:8px;
-  letter-spacing:.15em;color:rgba(120,155,200,.45);text-decoration:none;
+  position:fixed;top:20px;right:16px;
+  z-index:10;font-family:'Courier New',monospace;font-size:9px;
+  letter-spacing:.12em;color:rgba(140,175,220,.6);text-decoration:none;
   transition:color .2s;
 }
-#about-link:hover{color:rgba(180,210,250,.8)}
+#about-link:hover{color:rgba(200,225,255,.9)}
 
 /* ── Events panel ────────────────────────────────────────────────────────── */
 #events-panel{
@@ -101,36 +101,59 @@ canvas{display:block;width:100%;height:100%}
 #events-panel .ep-dim{color:rgba(130,160,200,.6);font-size:9px}
 #events-panel .ep-sep{border-top:1px solid rgba(60,100,160,.2);margin:6px 0}
 
+/* ── Hamburger button (mobile only) ──────────────────────────────────────── */
+#hamburger{
+  display:none;position:fixed;top:12px;right:12px;z-index:30;
+  background:rgba(2,4,10,.85);border:1px solid rgba(60,100,160,.5);
+  color:rgba(180,215,250,.9);cursor:pointer;padding:8px;
+  width:40px;height:40px;
+}
+#hamburger svg{width:24px;height:24px;fill:currentColor}
+
+/* ── Mobile menu (hidden by default) ─────────────────────────────────────── */
+#mobile-menu{
+  display:none;position:fixed;top:0;right:0;z-index:25;
+  background:rgba(2,4,10,.95);border-left:1px solid rgba(60,100,160,.3);
+  padding:60px 20px 30px;min-width:180px;
+  font-family:'Courier New',monospace;
+  transform:translateX(100%);transition:transform .25s ease;
+}
+#mobile-menu.open{transform:translateX(0)}
+.mm-section{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.mm-btn{
+  display:block;background:none;border:1px solid rgba(60,100,160,.35);
+  color:rgba(180,215,250,.85);font-family:'Courier New',monospace;
+  font-size:10px;letter-spacing:.12em;padding:8px 14px;
+  text-decoration:none;text-align:left;cursor:pointer;
+  transition:all .2s;
+}
+.mm-btn:hover{border-color:rgba(100,160,240,.7);color:rgba(220,240,255,1)}
+.mm-btn.active{border-color:rgba(100,160,240,.8);color:rgba(235,245,255,.98);background:rgba(20,40,80,.5)}
+
 /* ── Mobile / small screen ───────────────────────────────────────────────── */
 @media (max-width: 700px) {
-  /* Stack control buttons vertically on left */
-  .top-btn{position:static;display:block;margin:0}
-  #fsBtn,#lblBtn,#evtBtn{left:auto}
+  /* Hide desktop controls, show hamburger */
+  #top-controls,#loc-selector,#about-link{display:none !important}
+  #hamburger{display:block}
+  #mobile-menu{display:block}
 
-  #top-controls{
-    position:fixed;top:8px;left:8px;z-index:10;
-    display:flex;flex-direction:column;gap:4px;
-  }
+  /* Mission badge: smaller, no nowrap */
+  #mission-badge{top:14px;font-size:7px;white-space:normal;max-width:70vw;left:12px;transform:none}
 
-  /* Location selector below controls */
-  #loc-selector{
-    top:auto;bottom:80px;left:50%;
-    flex-wrap:wrap;justify-content:center;
-  }
-
-  /* Mission badge below location selector */
-  #mission-badge{top:auto;bottom:120px;font-size:8px;white-space:normal;max-width:90vw}
-
-  /* Events panel at bottom-left, smaller */
+  /* Events panel: bottom of screen, full width, compact */
   #events-panel{
-    right:auto;left:8px;top:auto;bottom:80px;
-    transform:none;font-size:9px;min-width:auto;max-width:55vw;
-    padding:10px 12px;
+    right:0;left:0;top:auto;bottom:0;
+    transform:none;font-size:9px;min-width:auto;
+    padding:10px 14px;border:none;border-top:1px solid rgba(60,100,160,.3);
+    max-height:35vh;overflow-y:auto;
   }
-  #events-panel.hidden{transform:translateX(-20px)}
+  #events-panel.hidden{opacity:0;pointer-events:none;transform:translateY(100%)}
 
-  /* HUD smaller */
-  #hud{font-size:9px;padding:10px 14px 14px}
+  /* HUD above events panel */
+  #hud{font-size:9px;padding:8px 12px 10px;bottom:0}
+
+  /* Tooltip: smaller on mobile */
+  #tooltip{font-size:9px;max-width:60vw}
 }
 
 /* ── About page styles ───────────────────────────────────────────────────── */

@@ -68,9 +68,9 @@ function initLocationText() {
   const epNote = document.getElementById('ep-note');
   if (epNote) epNote.textContent = LOC.eventsNote;
 
-  // Highlight active location button
-  document.querySelectorAll('.loc-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.loc === LOC.key);
+  // Highlight active location button (desktop + mobile menu)
+  document.querySelectorAll('.loc-btn, .mm-btn[data-loc]').forEach(btn => {
+    if (btn.dataset.loc) btn.classList.toggle('active', btn.dataset.loc === LOC.key);
   });
 }
 

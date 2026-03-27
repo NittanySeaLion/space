@@ -53,7 +53,7 @@ const LOCATIONS = {
     shadowedFloor: false,
     dayNightSurface: false,
     earthOnHorizon: false,
-    fixedViewAlt: 67,
+    fixedViewAlt: 55,
     fixedViewAz: null,
     sunLabels: ['SUNRISE', 'SUNSET'],
     eventsNote: 'TIDAL LOCK \u00b7 EARTH ALWAYS VISIBLE',

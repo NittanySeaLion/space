@@ -24,10 +24,11 @@
 
 <canvas id="c"></canvas>
 
+<!-- Desktop: visible normally. Mobile: hidden, replaced by hamburger -->
 <div id="loc-selector">
+  <a href="?loc=orientale" class="loc-btn" data-loc="orientale">ORIENTALE</a>
   <a href="?loc=shackleton" class="loc-btn" data-loc="shackleton">SHACKLETON</a>
   <a href="?loc=tranquility" class="loc-btn" data-loc="tranquility">TRANQUILITY</a>
-  <a href="?loc=orientale" class="loc-btn" data-loc="orientale">ORIENTALE</a>
 </div>
 
 <div id="top-controls">
@@ -37,6 +38,28 @@
   </button>
   <button id="lblBtn" class="top-btn" onclick="toggleLabels()">LABELS ON</button>
   <button id="evtBtn" class="top-btn" onclick="toggleEvents()">EVENTS ON</button>
+</div>
+
+<a id="about-link" href="/about">ABOUT</a>
+
+<!-- Mobile hamburger -->
+<button id="hamburger" onclick="document.getElementById('mobile-menu').classList.toggle('open')">
+  <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3"/></svg>
+</button>
+<div id="mobile-menu">
+  <div class="mm-section">
+    <a href="?loc=orientale" class="mm-btn" data-loc="orientale">ORIENTALE</a>
+    <a href="?loc=shackleton" class="mm-btn" data-loc="shackleton">SHACKLETON</a>
+    <a href="?loc=tranquility" class="mm-btn" data-loc="tranquility">TRANQUILITY</a>
+  </div>
+  <div class="mm-section">
+    <button class="mm-btn" onclick="toggleFS();document.getElementById('mobile-menu').classList.remove('open')">FULLSCREEN</button>
+    <button class="mm-btn" onclick="toggleLabels();document.getElementById('mobile-menu').classList.remove('open')">LABELS</button>
+    <button class="mm-btn" onclick="toggleEvents();document.getElementById('mobile-menu').classList.remove('open')">EVENTS</button>
+  </div>
+  <div class="mm-section">
+    <a href="/about" class="mm-btn">ABOUT</a>
+  </div>
 </div>
 
 <div id="events-panel">
@@ -68,8 +91,6 @@
   </div>
 </div>
 <div id="tooltip"></div>
-
-<a id="about-link" href="/about">ABOUT THIS PROJECT</a>
 
 <script src="/static/js/constants.js"></script>
 <script src="/static/js/ephemeris.js"></script>
