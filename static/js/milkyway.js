@@ -3,6 +3,9 @@
 // ── Milky Way panorama (ESO/S. Brunier, equirectangular in RA/Dec) ──────────
 let mwImg = null;
 let mwReady = false;
+let mwCanvas = null;   // offscreen canvas with pre-rendered projection
+let mwLastLST = -999;  // LST when last rendered
+let mwLastAz = -999;
 
 function loadMilkyWay() {
   const img = new Image();
@@ -10,62 +13,67 @@ function loadMilkyWay() {
   img.src = '/static/photos/milkyway.jpg';
 }
 
-// Render the Milky Way by projecting strips of the panorama onto the sky.
-// The panorama is equirectangular: x = RA (0-360°), y = Dec (+90 to -90°).
-// We sample vertical strips at each RA and draw them at the corresponding
-// alt/az screen position.
-function drawMW(lst, lat) {
-  if (!mwReady) return;
+// Pre-render the Milky Way projection to an offscreen canvas.
+// Only regenerated when LST or viewAz changes significantly.
+function renderMWToCache(lst, lat) {
+  if (!mwCanvas || mwCanvas.width !== W || mwCanvas.height !== H) {
+    mwCanvas = document.createElement('canvas');
+    mwCanvas.width = W;
+    mwCanvas.height = H;
+  }
+
+  const mc = mwCanvas.getContext('2d');
+  mc.clearRect(0, 0, W, H);
 
   const ppd = pxPerDeg();
   const skyH = H * (1 - GROUND_FRAC);
   const imgW = mwImg.naturalWidth;
   const imgH = mwImg.naturalHeight;
 
-  // How many degrees each image pixel column spans
-  const raPerPx = 360 / imgW;
-  const decPerPx = 180 / imgH;
+  const raStep = 3;   // coarser = faster
+  const decStep = 3;
 
-  // Step in RA degrees — wider steps = faster, finer = smoother
-  const raStep = 2;
-  // Vertical extent to draw at each strip (degrees of Dec above/below)
-  const decExtent = 90;
-
-  cx.save();
-  cx.globalAlpha = 0.35;  // subtle background glow
+  mc.globalAlpha = 0.35;
 
   for (let ra = 0; ra < 360; ra += raStep) {
-    // Check if any part of this RA strip is visible
-    // Sample at Dec = 0 (galactic plane roughly) for quick visibility check
-    const aa0 = altaz(ra, 0, lat, lst);
-    const aa1 = altaz(ra, 30, lat, lst);
-    const aa2 = altaz(ra, -30, lat, lst);
-    const anyVisible = [aa0, aa1, aa2].some(a => a.alt > -10 && inView(a.alt, a.az));
-    if (!anyVisible) continue;
-
-    // Source x position in the panorama
-    // ESO panorama: RA=0 at left edge, RA=360 at right edge
-    const srcX = Math.round((ra / 360) * imgW) % imgW;
-    const srcW = Math.max(1, Math.round(raStep / raPerPx));
-
-    // Draw vertical segments of this RA strip
-    for (let dec = -decExtent; dec < decExtent; dec += raStep) {
+    for (let dec = -80; dec <= 80; dec += decStep) {
       const aa = altaz(ra, dec, lat, lst);
-      if (aa.alt < -5 || !inView(aa.alt, aa.az)) continue;
+      if (aa.alt < -5) continue;
 
-      const { x, y } = proj(aa.alt, aa.az);
-      if (x < -50 || x > W + 50 || y < -50 || y > skyH + 50) continue;
+      let daz = ((aa.az - viewAz + 540) % 360) - 180;
+      if (abs(daz) > HFOV * R2D * 0.55) continue;
+      const dalt = aa.alt - viewAlt;
+      const vfov = skyH / ppd;
+      if (abs(dalt) > vfov * 0.55) continue;
 
-      // Source y position: Dec +90 at top (y=0), Dec -90 at bottom (y=imgH)
-      const srcY = Math.round(((90 - dec) / 180) * imgH);
-      const srcH = Math.max(1, Math.round(raStep / decPerPx));
+      const x = CX + daz * ppd;
+      const y = skyH / 2 - dalt * ppd;
 
-      // Destination size in pixels
-      const destSz = Math.max(2, raStep * ppd * 1.1);
+      // Source position in panorama: RA 0-360 left-to-right, Dec +90 top to -90 bottom
+      const srcX = ((ra / 360) * imgW) | 0;
+      const srcY = (((90 - dec) / 180) * imgH) | 0;
+      const srcW = Math.max(1, ((raStep / 360) * imgW) | 0);
+      const srcH = Math.max(1, ((decStep / 180) * imgH) | 0);
 
-      cx.drawImage(mwImg, srcX, srcY, srcW, srcH, x - destSz/2, y - destSz/2, destSz, destSz);
+      const destSz = Math.max(3, raStep * ppd * 1.15);
+      mc.drawImage(mwImg, srcX, srcY, srcW, srcH, x - destSz/2, y - destSz/2, destSz, destSz);
     }
   }
 
-  cx.restore();
+  mwLastLST = lst;
+  mwLastAz = viewAz;
+}
+
+function drawMW(lst, lat) {
+  if (!mwReady) return;
+
+  // Re-render cache if LST or viewAz changed significantly, or canvas resized
+  const needsUpdate = !mwCanvas ||
+    mwCanvas.width !== W ||
+    abs(lst - mwLastLST) > 0.5 ||
+    abs(viewAz - mwLastAz) > 0.5;
+
+  if (needsUpdate) renderMWToCache(lst, lat);
+
+  cx.drawImage(mwCanvas, 0, 0);
 }
