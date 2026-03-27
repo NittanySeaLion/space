@@ -84,13 +84,20 @@ function renderMWToCache(lst, lat) {
 
       const ra = ((lst - ha) % 360 + 360) % 360;
 
-      // Sample panorama (nearest-neighbor)
-      const px = ((ra / 360) * mwPW) | 0;
-      const py = (((90 - decDeg) / 180) * mwPH) | 0;
-      if (px < 0 || px >= mwPW || py < 0 || py >= mwPH) continue;
-
-      const si = (py * mwPW + px) * 4;
-      const r = src[si], g = src[si + 1], b = src[si + 2];
+      // Sample panorama (bilinear interpolation)
+      const fx = (ra / 360) * mwPW;
+      const fy = ((90 - decDeg) / 180) * mwPH;
+      const x0 = fx | 0, y0 = fy | 0;
+      if (x0 < 0 || x0 >= mwPW || y0 < 0 || y0 >= mwPH) continue;
+      const x1 = Math.min(x0 + 1, mwPW - 1);
+      const y1 = Math.min(y0 + 1, mwPH - 1);
+      const dxf = fx - x0, dyf = fy - y0;
+      const w00 = (1-dxf)*(1-dyf), w10 = dxf*(1-dyf), w01 = (1-dxf)*dyf, w11 = dxf*dyf;
+      const i00 = (y0*mwPW+x0)*4, i10 = (y0*mwPW+x1)*4;
+      const i01 = (y1*mwPW+x0)*4, i11 = (y1*mwPW+x1)*4;
+      const r = (src[i00]*w00 + src[i10]*w10 + src[i01]*w01 + src[i11]*w11) | 0;
+      const g = (src[i00+1]*w00 + src[i10+1]*w10 + src[i01+1]*w01 + src[i11+1]*w11) | 0;
+      const b = (src[i00+2]*w00 + src[i10+2]*w10 + src[i01+2]*w01 + src[i11+2]*w11) | 0;
 
       // Fill stride × stride block
       for (let dy = 0; dy < stride && sy + dy < skyH; dy++) {

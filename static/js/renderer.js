@@ -100,6 +100,10 @@ function drawEarth(x, y, alt, az, phase) {
   cx.save();
   cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.clip();
 
+  // Dark blue base fill — any edge gaps show ocean color instead of black
+  cx.fillStyle = 'rgba(15,30,60,1)';
+  cx.fillRect(x-r, y-r, r*2, r*2);
+
   if (earthImg) {
     // Rotate Earth image based on elapsed time since EPIC capture
     cx.save();
@@ -138,14 +142,10 @@ function drawEarth(x, y, alt, az, phase) {
 
   cx.restore();
 
-  // Atmospheric limb glow — physically accurate and masks clip-edge artifacts
-  const glowGrd = rg(x, y, r * 0.92, r * 1.2, [
-    [0, 'rgba(60,130,220,0.12)'],
-    [0.4, 'rgba(40,90,180,0.05)'],
-    [1, 'rgba(20,50,100,0)']
-  ]);
-  cx.fillStyle = glowGrd;
-  cx.beginPath(); cx.arc(x, y, r * 1.2, 0, TAU); cx.fill();
+  // Thin atmospheric limb line (Earth's atmosphere visible as razor-thin blue edge)
+  cx.strokeStyle = 'rgba(100,160,240,0.08)';
+  cx.lineWidth = 2;
+  cx.beginPath(); cx.arc(x, y, r + 1, 0, TAU); cx.stroke();
 
   if (showLabels) {
     cx.font = '10px Courier New';
@@ -246,30 +246,33 @@ function drawHorizon() {
     earthshineBright = 0;
   }
 
+  // Extend panorama above groundY for smooth sky-to-surface blend
+  const overlapH = Math.max(15, surfH * 0.12);
+
   cx.save();
-  cx.beginPath(); cx.rect(0, groundY, W, surfH); cx.clip();
+  cx.beginPath(); cx.rect(0, groundY - overlapH, W, surfH + overlapH); cx.clip();
 
   if (panoramaReady && panoramaImg) {
     const imgW = panoramaImg.naturalWidth;
     const imgH = panoramaImg.naturalHeight;
-    cx.drawImage(panoramaImg, 0, 0, imgW, imgH, 0, groundY, W, surfH);
+    cx.drawImage(panoramaImg, 0, 0, imgW, imgH, 0, groundY - overlapH, W, surfH + overlapH);
   } else {
     const grad = cx.createLinearGradient(0, groundY, 0, H);
     grad.addColorStop(0, '#4a453b');
     grad.addColorStop(0.4, '#3a362e');
     grad.addColorStop(1, '#2a2620');
     cx.fillStyle = grad;
-    cx.fillRect(0, groundY, W, surfH);
+    cx.fillRect(0, groundY - overlapH, W, surfH + overlapH);
   }
 
   if (darkOverlay > 0.01) {
     cx.fillStyle = `rgba(0,0,0,${darkOverlay.toFixed(3)})`;
-    cx.fillRect(0, groundY, W, surfH);
+    cx.fillRect(0, groundY - overlapH, W, surfH + overlapH);
   }
 
   if (earthshineBright > 0.01) {
     cx.fillStyle = `rgba(40,80,160,${(earthshineBright * 0.4).toFixed(3)})`;
-    cx.fillRect(0, groundY, W, surfH);
+    cx.fillRect(0, groundY - overlapH, W, surfH + overlapH);
   }
 
   // Golden hour tint (only for locations with day/night cycle)
@@ -279,7 +282,7 @@ function drawHorizon() {
       const golden = Math.max(0, 1 - abs(sunAlt - 3) / 10) * 0.12;
       if (golden > 0.005) {
         cx.fillStyle = `rgba(200,140,50,${golden.toFixed(3)})`;
-        cx.fillRect(0, groundY, W, surfH);
+        cx.fillRect(0, groundY - overlapH, W, surfH + overlapH);
       }
     }
   }
@@ -289,17 +292,18 @@ function drawHorizon() {
   bot.addColorStop(0, 'rgba(0,0,0,0)');
   bot.addColorStop(1, 'rgba(0,0,0,0.3)');
   cx.fillStyle = bot;
-  cx.fillRect(0, groundY, W, surfH);
+  cx.fillRect(0, groundY - overlapH, W, surfH + overlapH);
 
   cx.restore();
 
-  // Feather top edge of panorama into sky (soft blend, not hard black line)
-  const fadeH = Math.max(12, surfH * 0.18);
-  const fade = cx.createLinearGradient(0, groundY, 0, groundY + fadeH);
-  fade.addColorStop(0, 'rgba(0,0,0,0.5)');
+  // Feather: fade panorama into sky across the overlap zone
+  const fadeH = Math.max(20, surfH * 0.25);
+  const fade = cx.createLinearGradient(0, groundY - overlapH, 0, groundY + fadeH * 0.6);
+  fade.addColorStop(0, 'rgba(0,0,0,1)');
+  fade.addColorStop(0.4, 'rgba(0,0,0,0.3)');
   fade.addColorStop(1, 'rgba(0,0,0,0)');
   cx.fillStyle = fade;
-  cx.fillRect(0, groundY, W, fadeH);
+  cx.fillRect(0, groundY - overlapH, W, overlapH + fadeH * 0.6);
 
   // Compass bearings
   if (showLabels) {
