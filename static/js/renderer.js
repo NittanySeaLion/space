@@ -136,6 +136,15 @@ function drawEarth(x, y, alt, az, phase) {
 
   cx.restore();
 
+  // Atmospheric limb glow — physically accurate and masks clip-edge artifacts
+  const glowGrd = rg(x, y, r * 0.92, r * 1.2, [
+    [0, 'rgba(60,130,220,0.12)'],
+    [0.4, 'rgba(40,90,180,0.05)'],
+    [1, 'rgba(20,50,100,0)']
+  ]);
+  cx.fillStyle = glowGrd;
+  cx.beginPath(); cx.arc(x, y, r * 1.2, 0, TAU); cx.fill();
+
   if (showLabels) {
     cx.font = '10px Courier New';
     cx.fillStyle = 'rgba(150,200,255,.6)';

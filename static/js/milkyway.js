@@ -131,5 +131,8 @@ function drawMW(lst, lat) {
 
   if (needsUpdate) renderMWToCache(lst, lat);
 
+  cx.save();
+  cx.filter = 'blur(2px)';
   cx.drawImage(mwCanvas, 0, 0);
+  cx.restore();
 }
