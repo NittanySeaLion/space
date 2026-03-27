@@ -181,42 +181,6 @@ function drawPlanet(p) {
   return { x, y };
 }
 
-// ── Milky Way ───────────────────────────────────────────────────────────────
-function drawMW(lst, lat) {
-  const pts = MWP.map(p => {
-    const a = altaz(p.ra, p.dec, lat, lst);
-    return { ...proj(a.alt, a.az), alt: a.alt, az: a.az, dense: p.dense, vis: inView(a.alt, a.az) };
-  });
-  const w = W * 0.055;
-  cx.save();
-  [w*1.6, w, w*.5].forEach((lw, pi) => {
-    const op = [.020, .013, .006][pi];
-    cx.lineWidth = lw; cx.lineCap = 'round'; cx.lineJoin = 'round';
-    let on = false; cx.beginPath();
-    pts.forEach(p => {
-      if (!p.vis || p.alt < 0) { on = false; return; }
-      const opa = Math.min(1, (p.alt + 8) / 22) * p.dense;
-      cx.strokeStyle = `rgba(200,196,188,${op*opa})`;
-      if (!on) { cx.moveTo(p.x, p.y); on = true; } else cx.lineTo(p.x, p.y);
-    });
-    cx.stroke();
-  });
-  const t = Date.now() * .000012;
-  pts.forEach((p, i) => {
-    if (!p.vis || p.alt < 0 || i % 2) return;
-    const fade = Math.min(1, (p.alt + 3) / 20);
-    for (let k = 0; k < 7; k++) {
-      const ox = Math.sin(i*.7 + k*4.1 + t) * w*.85;
-      const oy = Math.cos(i*.5 + k*2.9 + t*1.2) * w*.85;
-      const br = Math.abs(Math.sin(i*1.3 + k*7.7));
-      const a = br*br * .065 * fade;
-      if (a < .004) continue;
-      cx.beginPath(); cx.arc(p.x+ox, p.y+oy, br*1.7, 0, TAU);
-      cx.fillStyle = `rgba(208,202,195,${a})`; cx.fill();
-    }
-  });
-  cx.restore();
-}
 
 // ── Panorama-based lunar surface ────────────────────────────────────────────
 let panoramaImg = null;
