@@ -41,7 +41,7 @@ function renderMWToCache(lst, lat) {
 
   const mc   = mwCanvas.getContext('2d');
   const ppd  = pxPerDeg();
-  const skyH = (H * (1 - GROUND_FRAC)) | 0;
+  const skyH = Math.round(H * (1 - GROUND_FRAC));
 
   // Work directly with pixel data for seamless result
   const imgData = mc.createImageData(W, skyH);
