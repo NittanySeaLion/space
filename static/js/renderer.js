@@ -235,6 +235,7 @@ function loadPhotos() {
     };
     img.src = '/static/photos/panorama.jpg';
   }
+  loadMilkyWay();
   fetchEarthImage();
 }
 

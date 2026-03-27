@@ -140,14 +140,14 @@ canvas{display:block;width:100%;height:100%}
   /* Mission badge: smaller, no nowrap */
   #mission-badge{top:14px;font-size:7px;white-space:normal;max-width:70vw;left:12px;transform:none}
 
-  /* Events panel: bottom of screen, full width, compact */
+  /* Events panel: top of screen, full width, compact */
   #events-panel{
-    right:0;left:0;top:auto;bottom:0;
+    right:0;left:0;top:50px;bottom:auto;
     transform:none;font-size:9px;min-width:auto;
-    padding:10px 14px;border:none;border-top:1px solid rgba(60,100,160,.3);
+    padding:10px 14px;border:none;border-bottom:1px solid rgba(60,100,160,.3);
     max-height:35vh;overflow-y:auto;
   }
-  #events-panel.hidden{opacity:0;pointer-events:none;transform:translateY(100%)}
+  #events-panel.hidden{opacity:0;pointer-events:none;transform:translateY(-100%)}
 
   /* HUD above events panel */
   #hud{font-size:9px;padding:8px 12px 10px;bottom:0}
