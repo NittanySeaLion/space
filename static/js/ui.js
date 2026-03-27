@@ -1,16 +1,15 @@
 'use strict';
 
-// ── View state ──────────────────────────────────────────────────────────────
-let viewAz = LOC.fixedViewAz !== null ? LOC.fixedViewAz : 0;  // set from location config
-let viewAlt = 35;   // initial; recomputed by computeViewAlt() after resize
-let showLabels = true;
-let showEvents = false;
+// ── View state (with localStorage persistence) ─────────────────────────────
+let viewAz = LOC.fixedViewAz !== null ? LOC.fixedViewAz : 0;
+let viewAlt = 35;
+let showLabels = localStorage.getItem('lunarsky-labels') !== 'off';
+let showEvents = localStorage.getItem('lunarsky-events') !== 'off';  // default ON
 
 // ── Drag disabled — fixed view facing Earth ─────────────────────────────────
 let dragStart = null;
 
 function initDrag(cv) {
-  // No drag panning — view is locked on Earth direction
   cv.addEventListener('mouseleave', () => { document.getElementById('tooltip').style.display = 'none'; });
 }
 
@@ -54,6 +53,7 @@ function initTooltip(cv, getBodies) {
 // ── Button handlers ─────────────────────────────────────────────────────────
 function toggleLabels() {
   showLabels = !showLabels;
+  localStorage.setItem('lunarsky-labels', showLabels ? 'on' : 'off');
   const btn = document.getElementById('lblBtn');
   btn.textContent = showLabels ? 'LABELS ON' : 'LABELS OFF';
   btn.classList.toggle('off', !showLabels);
@@ -61,10 +61,24 @@ function toggleLabels() {
 
 function toggleEvents() {
   showEvents = !showEvents;
+  localStorage.setItem('lunarsky-events', showEvents ? 'on' : 'off');
   const btn = document.getElementById('evtBtn');
   const panel = document.getElementById('events-panel');
   btn.textContent = showEvents ? 'EVENTS ON' : 'EVENTS OFF';
   btn.classList.toggle('off', !showEvents);
+  panel.classList.toggle('hidden', !showEvents);
+}
+
+// Apply initial state to DOM (called from main.js init)
+function initToggleState() {
+  const lblBtn = document.getElementById('lblBtn');
+  lblBtn.textContent = showLabels ? 'LABELS ON' : 'LABELS OFF';
+  lblBtn.classList.toggle('off', !showLabels);
+
+  const evtBtn = document.getElementById('evtBtn');
+  const panel = document.getElementById('events-panel');
+  evtBtn.textContent = showEvents ? 'EVENTS ON' : 'EVENTS OFF';
+  evtBtn.classList.toggle('off', !showEvents);
   panel.classList.toggle('hidden', !showEvents);
 }
 

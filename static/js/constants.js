@@ -80,7 +80,7 @@ const LOCATIONS = {
 
 // ── Active location (from URL param) ────────────────────────────────────────
 const _params = new URLSearchParams(window.location.search);
-const LOC = LOCATIONS[_params.get('loc')] || LOCATIONS.shackleton;
+const LOC = LOCATIONS[_params.get('loc')] || LOCATIONS.orientale;
 
 const OBS = { lat: LOC.lat, lon: LOC.lon, elev: 0.00 };
 const HFOV = LOC.hfov * D2R;

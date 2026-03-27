@@ -143,6 +143,7 @@ function render(ts) {
 
 // ── Init ────────────────────────────────────────────────────────────────────
 initLocationText();
+initToggleState();
 initDrag(cv);
 initTooltip(cv, () => bodies);
 initFullscreen();
