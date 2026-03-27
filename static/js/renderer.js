@@ -279,11 +279,10 @@ function drawHorizon() {
     }
   }
 
-  // Darken top of panorama so it blends into dark sky at horizon
-  const surfFadeH = Math.max(30, surfH * 0.4);
+  // Softly blend top edge of panorama (just enough to hide the hard pixel edge)
+  const surfFadeH = Math.max(8, surfH * 0.06);
   const surfFade = cx.createLinearGradient(0, groundY, 0, groundY + surfFadeH);
-  surfFade.addColorStop(0, 'rgba(0,0,0,0.92)');
-  surfFade.addColorStop(0.35, 'rgba(0,0,0,0.4)');
+  surfFade.addColorStop(0, 'rgba(0,0,0,0.35)');
   surfFade.addColorStop(1, 'rgba(0,0,0,0)');
   cx.fillStyle = surfFade;
   cx.fillRect(0, groundY, W, surfFadeH);
