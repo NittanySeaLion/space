@@ -23,7 +23,13 @@ function rg(x, y, r0, r1, stops) {
 }
 
 // ── Equirectangular projection helpers ──────────────────────────────────────
-function pxPerDeg() { return W / (HFOV * R2D); }
+function pxPerDeg() {
+  const base = W / (HFOV * R2D);
+  // Cap VFOV at 90° to prevent extreme distortion on tall/narrow screens
+  const skyH = H * (1 - GROUND_FRAC);
+  const minPpd = skyH / 90;
+  return Math.max(base, minPpd);
+}
 
 function computeViewAlt() {
   if (LOC.fixedViewAlt !== null) return LOC.fixedViewAlt;
