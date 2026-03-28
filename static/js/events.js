@@ -139,9 +139,11 @@ function updateEventsPanel(jd) {
     }
   }
 
-  const phaseNames = ['NEW','WAXING CRESCENT','FIRST QUARTER','WAXING GIBBOUS',
-                      'FULL','WANING GIBBOUS','LAST QUARTER','WANING CRESCENT'];
-  const phaseName = phaseNames[Math.round(pf * 8) % 8];
+  // Earth's phase name is the complement of the Moon's phase
+  // When Moon is waxing gibbous (pf≈0.35), Earth is waning crescent from Moon
+  const earthPhaseNames = ['FULL','WANING GIBBOUS','LAST QUARTER','WANING CRESCENT',
+                           'NEW','WAXING CRESCENT','FIRST QUARTER','WAXING GIBBOUS'];
+  const phaseName = earthPhaseNames[Math.round(pf * 8) % 8];
   document.getElementById('ep-earthphase').innerHTML =
     `EARTH PHASE  <span class="ep-val">${phase_pct}%</span><br>` +
     `<span class="ep-dim">${phaseName} (LUNAR VIEW)</span>`;
