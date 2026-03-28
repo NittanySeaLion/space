@@ -6,11 +6,152 @@ let viewAlt = 35;
 let showLabels = localStorage.getItem('lunarsky-labels') !== 'off';
 let showEvents = localStorage.getItem('lunarsky-events') !== 'off';  // default ON
 
-// ── Drag disabled — fixed view facing Earth ─────────────────────────────────
+// ── Pan & zoom state ────────────────────────────────────────────────────────
+let userPanning = false;       // true while user has overridden default view
+let panTimeout = null;         // timer to snap back after inactivity
+let snapAnim = null;           // animation frame ID for snap-back tween
+const PAN_SNAP_DELAY = 4000;   // ms of inactivity before snapping back
+const SNAP_SPEED = 0.06;       // lerp factor per frame (0–1, higher = faster)
+
+// Default view targets (updated each frame by main.js)
+let defaultAz = viewAz;
+let defaultAlt = viewAlt;
+
+function setDefaultView(az, alt) {
+  defaultAz = az;
+  defaultAlt = alt;
+}
+
+function startUserPan() {
+  userPanning = true;
+  if (snapAnim) { cancelAnimationFrame(snapAnim); snapAnim = null; }
+  clearTimeout(panTimeout);
+  panTimeout = setTimeout(snapBack, PAN_SNAP_DELAY);
+}
+
+function snapBack() {
+  if (!userPanning) return;
+  // Smoothly animate back to default view
+  function tick() {
+    const dAz = ((defaultAz - viewAz + 540) % 360) - 180;
+    const dAlt = defaultAlt - viewAlt;
+    const dFov = BASE_HFOV - HFOV;
+    if (abs(dAz) < 0.1 && abs(dAlt) < 0.1 && abs(dFov) < 0.002) {
+      viewAz = defaultAz;
+      viewAlt = defaultAlt;
+      HFOV = BASE_HFOV;
+      userPanning = false;
+      snapAnim = null;
+      return;
+    }
+    viewAz = ((viewAz + dAz * SNAP_SPEED) % 360 + 360) % 360;
+    viewAlt += dAlt * SNAP_SPEED;
+    HFOV += dFov * SNAP_SPEED;
+    snapAnim = requestAnimationFrame(tick);
+  }
+  snapAnim = requestAnimationFrame(tick);
+}
+
+// ── Mouse drag ──────────────────────────────────────────────────────────────
 let dragStart = null;
+let dragAzStart = 0;
+let dragAltStart = 0;
 
 function initDrag(cv) {
-  cv.addEventListener('mouseleave', () => { document.getElementById('tooltip').style.display = 'none'; });
+  cv.addEventListener('mouseleave', () => {
+    document.getElementById('tooltip').style.display = 'none';
+    dragStart = null;
+  });
+
+  cv.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;  // left click only
+    dragStart = { x: e.clientX, y: e.clientY };
+    dragAzStart = viewAz;
+    dragAltStart = viewAlt;
+    document.getElementById('tooltip').style.display = 'none';
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!dragStart) return;
+    const ppd = pxPerDeg();
+    const dAz = -(e.clientX - dragStart.x) / ppd;
+    const dAlt = (e.clientY - dragStart.y) / ppd;
+    viewAz = ((dragAzStart + dAz) % 360 + 360) % 360;
+    viewAlt = Math.max(-10, Math.min(88, dragAltStart + dAlt));
+    startUserPan();
+  });
+
+  window.addEventListener('mouseup', () => { dragStart = null; });
+
+  // ── Mouse wheel zoom ───────────────────────────────────────────────────
+  cv.addEventListener('wheel', e => {
+    e.preventDefault();
+    const zoomFactor = e.deltaY > 0 ? 1.08 : 0.93;
+    HFOV = Math.max(HFOV_MIN, Math.min(HFOV_MAX, HFOV * zoomFactor));
+    startUserPan();
+  }, { passive: false });
+
+  // ── Double-click to snap back ─────────────────────────────────────────
+  cv.addEventListener('dblclick', e => {
+    e.preventDefault();
+    HFOV = BASE_HFOV;
+    clearTimeout(panTimeout);
+    snapBack();
+  });
+
+  // ── Touch support ─────────────────────────────────────────────────────
+  let touchStart = null;
+  let touchAzStart = 0;
+  let touchAltStart = 0;
+  let pinchDist0 = null;
+  let pinchFov0 = 0;
+
+  cv.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      touchAzStart = viewAz;
+      touchAltStart = viewAlt;
+    } else if (e.touches.length === 2) {
+      touchStart = null;
+      pinchDist0 = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY
+      );
+      pinchFov0 = HFOV;
+    }
+  }, { passive: true });
+
+  cv.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (e.touches.length === 1 && touchStart) {
+      const ppd = pxPerDeg();
+      const dAz = -(e.touches[0].clientX - touchStart.x) / ppd;
+      const dAlt = (e.touches[0].clientY - touchStart.y) / ppd;
+      viewAz = ((touchAzStart + dAz) % 360 + 360) % 360;
+      viewAlt = Math.max(-10, Math.min(88, touchAltStart + dAlt));
+      startUserPan();
+    } else if (e.touches.length === 2 && pinchDist0) {
+      const dist = Math.hypot(
+        e.touches[1].clientX - e.touches[0].clientX,
+        e.touches[1].clientY - e.touches[0].clientY
+      );
+      HFOV = Math.max(HFOV_MIN, Math.min(HFOV_MAX, pinchFov0 * (pinchDist0 / dist)));
+      startUserPan();
+    }
+  }, { passive: false });
+
+  cv.addEventListener('touchend', e => {
+    if (e.touches.length === 0) {
+      touchStart = null;
+      pinchDist0 = null;
+    } else if (e.touches.length === 1) {
+      // Transition from pinch back to single-finger pan
+      pinchDist0 = null;
+      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      touchAzStart = viewAz;
+      touchAltStart = viewAlt;
+    }
+  }, { passive: true });
 }
 
 // ── Tooltip ─────────────────────────────────────────────────────────────────
@@ -98,5 +239,13 @@ function initFullscreen() {
       : 'M3 3h6v2H5v4H3V3zm12 0h6v6h-2V5h-4V3zM3 15h2v4h4v2H3v-6zm16 4h-4v2h6v-6h-2v4z');
     document.getElementById('fsLabel').textContent = isFs ? 'EXIT FULLSCREEN' : 'FULLSCREEN';
   });
-  document.addEventListener('keydown', e => { if (e.key === 'f' || e.key === 'F') toggleFS(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'f' || e.key === 'F') toggleFS();
+    // Escape also snaps back to default view
+    if (e.key === 'Escape' && userPanning) {
+      HFOV = BASE_HFOV;
+      clearTimeout(panTimeout);
+      snapBack();
+    }
+  });
 }

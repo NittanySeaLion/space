@@ -83,7 +83,10 @@ const _params = new URLSearchParams(window.location.search);
 const LOC = LOCATIONS[_params.get('loc')] || LOCATIONS.orientale;
 
 const OBS = { lat: LOC.lat, lon: LOC.lon, elev: 0.00 };
-const HFOV = LOC.hfov * D2R;
+const BASE_HFOV = LOC.hfov * D2R;
+let HFOV = BASE_HFOV;
+const HFOV_MIN = 15 * D2R;   // max zoom in (15° FOV)
+const HFOV_MAX = 120 * D2R;  // max zoom out (120° FOV)
 const GROUND_FRAC = LOC.groundFrac;
 
 // ── Lunar synodic constants ─────────────────────────────────────────────────

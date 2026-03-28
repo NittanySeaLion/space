@@ -10,7 +10,7 @@ function resize() {
   CX = W / 2;
   CY = H / 2;
   SR = Math.min(W, H) / 2;
-  viewAlt = computeViewAlt();
+  if (!userPanning) viewAlt = computeViewAlt();
 }
 resize();
 window.addEventListener('resize', resize);
@@ -89,10 +89,19 @@ function render(ts) {
     lastBodyJD = jd;
   }
 
-  // Track Earth azimuth for locations without fixed viewAz
-  if (LOC.fixedViewAz === null) {
-    const earthBody = bodies.find(b => b.isEarth);
-    if (earthBody) viewAz = earthBody.az;
+  // Compute default view target (Earth-tracking or fixed)
+  {
+    let defAz = LOC.fixedViewAz !== null ? LOC.fixedViewAz : viewAz;
+    if (LOC.fixedViewAz === null) {
+      const earthBody = bodies.find(b => b.isEarth);
+      if (earthBody) defAz = earthBody.az;
+    }
+    setDefaultView(defAz, computeViewAlt());
+    // Only auto-track when user isn't panning
+    if (!userPanning) {
+      viewAz = defAz;
+      viewAlt = computeViewAlt();
+    }
   }
 
   drawMW(lst, OBS.lat);
@@ -128,7 +137,9 @@ function render(ts) {
   const z = n => String(n).padStart(2, '0');
   document.getElementById('ht-houston').textContent = houstonTime(now);
   document.getElementById('ht-utc').textContent = `${now.getUTCFullYear()}-${z(now.getUTCMonth()+1)}-${z(now.getUTCDate())} ${z(now.getUTCHours())}:${z(now.getUTCMinutes())}:${z(now.getUTCSeconds())} UTC`;
-  document.getElementById('h-lun').textContent = `FACING  ${compassDir(viewAz)}  (${viewAz.toFixed(0)}\u00b0)`;
+  const zoomPct = Math.round(BASE_HFOV * R2D / (HFOV * R2D) * 100);
+  const zoomStr = zoomPct !== 100 ? `  \u00b7  ${zoomPct}% ZOOM` : '';
+  document.getElementById('h-lun').textContent = `FACING  ${compassDir(viewAz)}  (${viewAz.toFixed(0)}\u00b0)${zoomStr}`;
 
   updateEventsPanel(jd);
 
