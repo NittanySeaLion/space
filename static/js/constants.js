@@ -47,7 +47,7 @@ const LOCATIONS = {
     badge: 'APOLLO 11 LANDING SITE',
     coordStr: '0.6741\u00b0N  23.4322\u00b0E',
     lat: 0.6741, lon: 23.4322,
-    hfov: 60,
+    hfov: 90,
     groundFrac: 0,
     hasPanorama: false,
     shadowedFloor: false,
