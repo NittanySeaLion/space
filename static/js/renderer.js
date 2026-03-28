@@ -58,6 +58,20 @@ function inView(alt, az) {
   return abs(daz) < HFOV * R2D * 0.55 && abs(dalt) < vfovSky * 0.55;
 }
 
+// ── B-V color index to RGB (Ballesteros 2012 → Tanner Helland color temp) ───
+function bv2rgb(bv) {
+  const b = Math.max(-0.4, Math.min(2.0, bv));
+  const t = 4600 * (1 / (0.92 * b + 1.7) + 1 / (0.92 * b + 0.62));
+  const x = t / 100;
+  // Tanner Helland color temperature → RGB
+  const r = x > 66 ? 329.7 * pow(x - 60, -0.1332) : 255;
+  const g = x > 66 ? 288.1 * pow(x - 60, -0.0755) : 99.47 * Math.log(x) - 161.12;
+  const bl = x >= 66 ? 255 : (x > 20 ? 138.52 * Math.log(x - 10) - 305.04 : 0);
+  return [Math.max(0, Math.min(255, r)) | 0,
+          Math.max(0, Math.min(255, g)) | 0,
+          Math.max(0, Math.min(255, bl)) | 0];
+}
+
 // ── Draw star (airless Moon — perfectly steady, no scintillation) ───────────
 function drawStar(x, y, sz, rgb, alpha) {
   if (alpha < .015) return;
