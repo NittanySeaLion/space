@@ -267,7 +267,19 @@ function drawHorizon() {
   if (panoramaReady && panoramaImg) {
     const imgW = panoramaImg.naturalWidth;
     const imgH = panoramaImg.naturalHeight;
-    cx.drawImage(panoramaImg, 0, 0, imgW, imgH, 0, groundY, W, surfH);
+    // Scroll panorama with viewAz — treat image as repeating 360° strip
+    const ppd = pxPerDeg();
+    const panW = ppd * 360;              // full 360° in screen pixels
+    const dAz = ((viewAz - defaultAz + 540) % 360) - 180;
+    const offsetPx = dAz * ppd;          // how far we've panned from default
+    // Draw panorama shifted, with tiling copies on each side
+    const baseX = -offsetPx;
+    const drawW = Math.max(W, panW);     // ensure at least screen width
+    // We tile by drawing the image at baseX modulo drawW, plus neighbors
+    const shift = ((baseX % drawW) + drawW) % drawW;
+    cx.drawImage(panoramaImg, 0, 0, imgW, imgH, shift - drawW, groundY, drawW, surfH);
+    cx.drawImage(panoramaImg, 0, 0, imgW, imgH, shift,         groundY, drawW, surfH);
+    cx.drawImage(panoramaImg, 0, 0, imgW, imgH, shift + drawW, groundY, drawW, surfH);
   } else {
     const grad = cx.createLinearGradient(0, groundY, 0, H);
     grad.addColorStop(0, '#4a453b');
