@@ -18,54 +18,63 @@
 <h2>THE THREE LOCATIONS</h2>
 
 <p><strong>Mare Orientale &mdash; Western Limb</strong><br>
-Standing on the eastern rim of this massive impact basin, you are on the very edge of the Moon's Earth-facing side. The Earth sits permanently on the horizon, bobbing gently with lunar libration (&plusmn;7&deg; over 27 days). You experience a full day/night cycle: 14.75 days of sunlight, then 14.75 days of darkness lit only by earthshine. This is the "default" view because it offers the most dynamic scene &mdash; sunrise, sunset, earthshine, and a horizon-hugging Earth all in one frame.</p>
+Standing on the eastern rim of this massive impact basin, you are on the very edge of the Moon's Earth-facing side. The Earth sits permanently on the horizon, bobbing gently with lunar libration (&plusmn;7&deg; over 27 days). You experience a full day/night cycle: 14.75 days of sunlight, then 14.75 days of darkness lit only by earthshine. This is the &ldquo;default&rdquo; view because it offers the most dynamic scene &mdash; sunrise, sunset, earthshine, and a horizon-hugging Earth all in one frame.</p>
 
 <p><strong>Shackleton Crater &mdash; Lunar South Pole</strong><br>
-NASA's Artemis III target. At 89.9&deg;S, the crater floor is one of the coldest places in the solar system &mdash; permanently shadowed, never reached by direct sunlight. The sun barely skims the rim, while the Earth performs a slow "libration dance" on the horizon, rising and setting over the 27-day cycle. The ground is rendered near-black because that's what you'd actually see: darkness, with only faint earthshine occasionally illuminating the regolith.</p>
+NASA's Artemis III target. At 89.9&deg;S, the crater floor is one of the coldest places in the solar system &mdash; permanently shadowed, never reached by direct sunlight. The sun barely skims the rim, while the Earth performs a slow &ldquo;libration dance&rdquo; on the horizon, rising and setting over the 27-day cycle. The ground is rendered near-black because that's what you'd actually see: darkness, with only faint earthshine occasionally illuminating the regolith.</p>
 
 <p><strong>Tranquility Base &mdash; Sea of Tranquility</strong><br>
-The Apollo 11 landing site. From here, the Earth hangs at roughly 67&deg; altitude &mdash; almost directly overhead, always in the same patch of sky. This view looks straight up at Earth with no horizon, framed by stars. The 60&deg; field of view avoids the projection distortion that plagued wider angles at this steep viewing angle.</p>
+The Apollo 11 landing site. From here, the Earth hangs at roughly 67&deg; altitude &mdash; almost directly overhead, always in the same patch of sky. This view looks straight up at Earth with no horizon, framed by stars.</p>
 
 <h2>DESIGN CHOICES</h2>
 
 <ul>
-<li><strong>90&deg; FOV</strong> (60&deg; for Tranquility) &mdash; approximates natural human vision. 150&deg; was tried first but created fisheye-like distortion at the edges, stretching star positions dishonestly.</li>
+<li><strong>90&deg; FOV</strong> &mdash; consistent across all three locations, approximating natural human peripheral vision.</li>
 <li><strong>Rotating Earth</strong> &mdash; the DSCOVR/EPIC satellite image is rotated at 15&deg;/hour based on its capture timestamp, so continents move across the disk as they would in reality.</li>
 <li><strong>No atmospheric scattering</strong> &mdash; the Moon has no atmosphere. Stars don't twinkle, they appear as steady points. There is no blue sky gradient, no horizon glow. Stars are visible during lunar day (the sun doesn't wash them out in a vacuum).</li>
 <li><strong>Permanent shadow at Shackleton</strong> &mdash; the crater floor never sees direct sunlight. The panorama is darkened to near-black, with subtle blue earthshine glow when the Earth is above the horizon.</li>
 <li><strong>Phase terminator</strong> &mdash; the day/night line on Earth is computed from the Moon's synodic phase, matching what you'd actually see from the lunar surface.</li>
 <li><strong>Earth angular size</strong> &mdash; 1.9&deg; apparent diameter (3.7&times; our Moon as seen from Earth), rendered at 1.6&times; true scale for readability at screen resolutions.</li>
+<li><strong>Pan &amp; zoom</strong> &mdash; drag to explore the sky, scroll or pinch to zoom (15&deg;&ndash;120&deg; FOV). Double-click or press Escape to snap back to the default Earth-facing view.</li>
+<li><strong>Star magnitude limit</strong> &mdash; 6.0 (5,070 stars). On the airless Moon there is no atmosphere to scatter light or set a practical naked-eye limit; magnitude 6.0 represents a conservative lower bound for naked-eye visibility in a truly dark sky.</li>
 </ul>
 
-<h2>EPHEMERIS SOURCES</h2>
+<h2>DATA SOURCES &amp; ATTRIBUTIONS</h2>
 
 <ul>
-<li><strong>VSOP87</strong> &mdash; primary planetary position engine (Sun, Mercury through Neptune), running client-side in JavaScript</li>
-<li><strong>JPL Horizons</strong> &mdash; server-side refinement for bright planets, cached and served via API every 10 minutes</li>
-<li><strong>IAU Lunar Coordinates</strong> &mdash; selenographic observer positions, lunar local sidereal time</li>
-<li><strong>DSCOVR/EPIC</strong> &mdash; real Earth photographs from NASA's Deep Space Climate Observatory at the Sun-Earth L1 point, updated every ~2 hours</li>
-<li><strong>Yale Bright Star Catalog</strong> &mdash; ~9,000 stars to magnitude 6.5, with B-V color indices for accurate star colors</li>
-<li><strong>Milky Way</strong> &mdash; ESO/S. Brunier 360&deg; panorama (<a href="https://www.eso.org/public/images/eso0932a/">eso0932a</a>, CC BY 4.0), projected from equatorial coordinates onto the lunar sky</li>
-<li><strong>Panorama</strong> &mdash; Apollo 11 Lunar Surface Closeup Camera photograph (NASA/Buzz Aldrin), used as horizon texture</li>
-</ul>
-
-<h2>WHAT'S REAL, WHAT'S NOT</h2>
-
-<ul>
-<li><strong>Real:</strong> Star positions, planet positions, Earth phase, Earth altitude/azimuth, sunrise/sunset timing, libration effects, earthshine brightness, Milky Way position and structure</li>
-<li><strong>Approximate:</strong> Earth rotation (15&deg;/hr from EPIC capture time), libration amplitude</li>
-<li><strong>Artistic license:</strong> Earth rendered at 1.6&times; true angular size, star glow halos</li>
+<li><strong>VSOP87</strong> &mdash; primary planetary position engine (Sun, Mercury through Neptune), running client-side in JavaScript. Bretagnon &amp; Francou, 1988.</li>
+<li><strong>JPL Horizons</strong> &mdash; server-side refinement for bright planets, cached and served via API every 10 minutes. NASA Jet Propulsion Laboratory.</li>
+<li><strong>IAU Lunar Coordinates</strong> &mdash; selenographic observer positions, lunar local sidereal time.</li>
+<li><strong>DSCOVR/EPIC</strong> &mdash; real Earth photographs from NASA's Deep Space Climate Observatory at the Sun-Earth L1 point, updated every ~2 hours. NASA/NOAA.</li>
+<li><strong>HYG Database v4.1</strong> &mdash; 5,070 stars to magnitude 6.0, with J2000 equatorial coordinates and B-V color indices for accurate star colors. Compiled by David Nash from Hipparcos, Yale Bright Star Catalog, and Gliese/Jahrei&szlig; catalogs. <a href="https://github.com/astronexus/HYG-Database">astronexus/HYG-Database</a>.</li>
+<li><strong>Milky Way panorama</strong> &mdash; ESO/S. Brunier, 360&deg; equirectangular panorama (<a href="https://www.eso.org/public/images/eso0932a/">eso0932a</a>), 4096&times;2048, CC BY 4.0. Projected from equatorial coordinates onto the lunar sky using per-pixel inverse projection.</li>
+<li><strong>Lunar surface panorama</strong> &mdash; Apollo 11 photograph (NASA/Buzz Aldrin), used as horizon texture. See note below.</li>
+<li><strong>NASA DUST (planned)</strong> &mdash; Digital Lunar Exploration Sites Unreal Simulation Tool, v1.9.3, NASA Case No. MSC-27522-1. Johnson Space Center. To be used to render terrain-accurate surface panoramas from LRO LOLA digital elevation model data. Received under NASA Software Usage Agreement (General Public Release).</li>
+<li><strong>LRO LOLA DEM</strong> &mdash; Lunar Reconnaissance Orbiter Lunar Orbiter Laser Altimeter digital elevation model. NASA Goddard PGDA, <a href="https://pgda.gsfc.nasa.gov/products/view/66">pgda.gsfc.nasa.gov</a>. Underlies both DUST terrain and planned Blender renders for Orientale and Tranquility.</li>
 </ul>
 
 <h2>LUNAR SURFACE PANORAMA</h2>
 
-<p>The horizon panorama used at all locations is a single photograph taken by Buzz Aldrin during the Apollo 11 mission at the Sea of Tranquility. It does not represent the actual surface at Shackleton Crater or Mare Orientale &mdash; no boots-on-the-ground photography exists for those locations. At Shackleton, the panorama is darkened to near-black to reflect the permanent shadow of the crater floor. At Mare Orientale, it cycles between lit and dark with the 29.5-day lunar day.</p>
+<p>The horizon panorama currently used at all locations is a photograph taken by Buzz Aldrin during the Apollo 11 mission at the Sea of Tranquility. It does not represent the actual surface at Shackleton Crater or Mare Orientale &mdash; no boots-on-the-ground photography exists for those locations. At Shackleton, the panorama is darkened to near-black to reflect the permanent shadow of the crater floor. At Mare Orientale, it cycles between lit and dark with the 29.5-day lunar day.</p>
+
+<p>Location-accurate terrain panoramas are planned using NASA DUST (Shackleton) and LRO LOLA elevation data rendered in Blender (Orientale, Tranquility), once those assets are prepared.</p>
+
+<h2>WHAT'S REAL, WHAT'S NOT</h2>
+
+<ul>
+<li><strong>Real:</strong> Star positions, planet positions, Earth phase, Earth altitude/azimuth, sunrise/sunset timing, libration effects, earthshine brightness, Milky Way position and orientation</li>
+<li><strong>Approximate:</strong> Earth rotation (15&deg;/hr from EPIC capture time), libration amplitude</li>
+<li><strong>Artistic license:</strong> Earth rendered at 1.6&times; true angular size, star glow halos</li>
+<li><strong>Placeholder:</strong> Lunar surface panorama (Apollo 11 photo used for all three locations)</li>
+</ul>
 
 <h2>TECHNICAL NOTES</h2>
 
 <p>Everything runs in the browser via HTML5 Canvas. The server (Flask on GCP e2-micro) only provides cached Horizons data and EPIC Earth images. No WebGL, no Three.js &mdash; just 2D canvas and math.</p>
 
 <p>The lunar local sidereal time computation accounts for the Moon's synchronous rotation, converting Earth-centric RA/Dec coordinates into selenographic alt/azimuth. Earth's position is computed directly from selenographic geometry rather than the inverse-Moon approach, which is more accurate for limb and polar observers.</p>
+
+<p>The Milky Way is rendered via per-pixel inverse projection: each screen pixel is reverse-projected to alt/az, converted to equatorial RA/Dec, then sampled from the ESO equirectangular panorama with bilinear interpolation. This ensures the galactic plane aligns correctly with the star catalog at all times and locations.</p>
 
 </div>
 </body>
