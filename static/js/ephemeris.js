@@ -93,7 +93,8 @@ function geocentric(nm, jd) {
   const eps = 23.4393 * D2R;
   const xe = dx, ye = dy * cos(eps) - dz * sin(eps), ze = dy * sin(eps) + dz * cos(eps);
   const dist = sqrt(xe*xe + ye*ye + ze*ze);
-  return { ra: n360(atan2(ye, xe) * R2D), dec: asin(Math.max(-1, Math.min(1, ze / dist))) * R2D, dist };
+  const r = sqrt(b2.x*b2.x + b2.y*b2.y + b2.z*b2.z); // heliocentric dist (AU)
+  return { ra: n360(atan2(ye, xe) * R2D), dec: asin(Math.max(-1, Math.min(1, ze / dist))) * R2D, dist, r };
 }
 
 // ── Sun position ────────────────────────────────────────────────────────────

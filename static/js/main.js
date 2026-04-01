@@ -31,7 +31,12 @@ function computeBodies(jd) {
     try {
       const p = geocentric(nm, jd);
       const aa = altaz(p.ra, p.dec, lat, lst);
-      res.push({ ...PDEF[i+1], ra: p.ra, dec: p.dec, ...aa, dist: p.dist });
+      // Phase: law of cosines on Sun-Planet-Earth triangle
+      // R ≈ 1 AU (Earth-Sun), r = planet-Sun, Δ = planet-Earth
+      const cosI = (p.dist*p.dist + p.r*p.r - 1.0) / (2*p.dist*p.r);
+      const phaseAngle = acos(Math.max(-1, Math.min(1, cosI)));
+      const illum = (1 + cos(phaseAngle)) / 2;
+      res.push({ ...PDEF[i+1], ra: p.ra, dec: p.dec, ...aa, dist: p.dist, phaseAngle, illum });
     } catch(e) {}
   });
 
@@ -125,10 +130,11 @@ function render(ts) {
   }
 
   // Bodies
+  const sunBody = bodies.find(b => b.isSun);
   bodies.forEach(p => {
     if (p.isEarth) { const { x, y } = proj(p.alt, p.az); drawEarth(x, y, p.alt, p.az, p.phase); }
     else if (p.isSun) { const { x, y } = proj(p.alt, p.az); drawSun(x, y, p.alt, p.az); }
-    else drawPlanet(p);
+    else drawPlanet(p, sunBody);
   });
 
   drawHorizon();
