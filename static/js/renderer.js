@@ -186,7 +186,7 @@ function drawSun(x, y, alt, az) {
   // Sharp solar disk — white-hot center, slightly yellow-white limb
   const disk = rg(x, y, 0, r, [[0,'rgba(255,255,255,1)'],[.7,'rgba(255,252,230,1)'],[1,'rgba(255,248,200,1)']]);
   cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.fillStyle = disk; cx.fill();
-  if (showLabels && alt > 0) { cx.font = '9px Courier New'; cx.fillStyle = 'rgba(255,240,180,.5)'; cx.fillText('SUN', x+r+6, y-r); }
+  if (showLabels) { cx.font = '9px Courier New'; cx.fillStyle = 'rgba(255,240,180,.5)'; cx.fillText('SUN', x+r+6, y-r); }
 }
 
 // ── Draw generic planet ─────────────────────────────────────────────────────
