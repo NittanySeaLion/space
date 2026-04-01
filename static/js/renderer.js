@@ -176,18 +176,17 @@ function drawEarth(x, y, alt, az, phase) {
 }
 
 // ── Draw Sun ────────────────────────────────────────────────────────────────
+// On airless Moon: sharp disk, no atmospheric halo. Only a tiny retinal bloom.
 function drawSun(x, y, alt, az) {
   if (alt < -2 || !inView(alt, az)) return;
-  const r = SR * (.5 / 90) * 2;
-  [r*18,r*10,r*5,r*2.5].forEach((gr, i) => {
-    const a = [.015,.04,.10,.25][i];
-    const g = rg(x, y, 0, gr, [[0,`rgba(255,255,230,${a})`],[1,'rgba(255,240,180,0)']]);
-    cx.beginPath(); cx.arc(x, y, gr, 0, TAU); cx.fillStyle = g; cx.fill();
-  });
-  const cg = rg(x, y, r*.5, r*2.2, [[0,'rgba(255,255,255,1)'],[.4,'rgba(255,248,220,1)'],[1,'rgba(255,230,150,0)']]);
-  cx.beginPath(); cx.arc(x, y, r*2.2, 0, TAU); cx.fillStyle = cg; cx.fill();
-  cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.fillStyle = 'rgba(255,255,255,1)'; cx.fill();
-  if (showLabels && alt > 2) { cx.font = '9px Courier New'; cx.fillStyle = 'rgba(255,240,180,.5)'; cx.fillText('SUN', x+r*2.5+4, y-r-2); }
+  const r = SR * (.5 / 90) * 2;  // ~0.5° angular diameter
+  // Tiny retinal bloom (eye overload, not atmospheric) — radius ~2x disk only
+  const bloom = rg(x, y, r, r * 3, [[0,'rgba(255,255,220,0.18)'],[1,'rgba(255,255,200,0)']]);
+  cx.beginPath(); cx.arc(x, y, r * 3, 0, TAU); cx.fillStyle = bloom; cx.fill();
+  // Sharp solar disk — white-hot center, slightly yellow-white limb
+  const disk = rg(x, y, 0, r, [[0,'rgba(255,255,255,1)'],[.7,'rgba(255,252,230,1)'],[1,'rgba(255,248,200,1)']]);
+  cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.fillStyle = disk; cx.fill();
+  if (showLabels && alt > 2) { cx.font = '9px Courier New'; cx.fillStyle = 'rgba(255,240,180,.5)'; cx.fillText('SUN', x+r+6, y-r); }
 }
 
 // ── Draw generic planet ─────────────────────────────────────────────────────
@@ -203,7 +202,7 @@ function drawPlanet(p) {
   }
   const dg = rg(x, y, 0, sz, [[0,'rgba(255,255,255,1)'],[.4,`rgba(${r},${g},${b},${ext})`],[1,`rgba(${Math.max(0,r-50)},${Math.max(0,g-50)},${Math.max(0,b-50)},${ext})`]]);
   cx.beginPath(); cx.arc(x, y, sz, 0, TAU); cx.fillStyle = dg; cx.fill();
-  if (showLabels && p.alt > 1 && sz >= 4) { cx.font = '9px Courier New'; cx.fillStyle = `rgba(200,220,240,${ext*.5})`; cx.fillText(p.name, x+sz+4, y-sz-2); }
+  if (showLabels && p.alt > 1) { cx.font = '9px Courier New'; cx.fillStyle = `rgba(200,220,240,${ext*.5})`; cx.fillText(p.name, x+sz+6, y-sz-2); }
   return { x, y };
 }
 
