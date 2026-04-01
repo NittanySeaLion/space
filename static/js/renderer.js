@@ -186,11 +186,11 @@ function drawSun(x, y, alt, az) {
   // Sharp solar disk — white-hot center, slightly yellow-white limb
   const disk = rg(x, y, 0, r, [[0,'rgba(255,255,255,1)'],[.7,'rgba(255,252,230,1)'],[1,'rgba(255,248,200,1)']]);
   cx.beginPath(); cx.arc(x, y, r, 0, TAU); cx.fillStyle = disk; cx.fill();
-  if (showLabels && alt > 2) { cx.font = '9px Courier New'; cx.fillStyle = 'rgba(255,240,180,.5)'; cx.fillText('SUN', x+r+6, y-r); }
+  if (showLabels && alt > 0) { cx.font = '9px Courier New'; cx.fillStyle = 'rgba(255,240,180,.5)'; cx.fillText('SUN', x+r+6, y-r); }
 }
 
 // ── Draw generic planet ─────────────────────────────────────────────────────
-function drawPlanet(p) {
+function drawPlanet(p, sun) {
   if (p.alt < -2 || !inView(p.alt, p.az)) return null;
   const { x, y } = proj(p.alt, p.az);
   if (x < -80 || x > W+80 || y < -80 || y > H+80) return null;
@@ -202,6 +202,31 @@ function drawPlanet(p) {
   }
   const dg = rg(x, y, 0, sz, [[0,'rgba(255,255,255,1)'],[.4,`rgba(${r},${g},${b},${ext})`],[1,`rgba(${Math.max(0,r-50)},${Math.max(0,g-50)},${Math.max(0,b-50)},${ext})`]]);
   cx.beginPath(); cx.arc(x, y, sz, 0, TAU); cx.fillStyle = dg; cx.fill();
+
+  // Phase terminator — only when phase data available and planet is noticeably non-full
+  if (p.phaseAngle !== undefined && p.illum < 0.97 && sun) {
+    const { x: sx, y: sy } = proj(sun.alt, sun.az);
+    const sunAngle = atan2(sy - y, sx - x);
+    cx.save();
+    cx.beginPath(); cx.arc(x, y, sz, 0, TAU); cx.clip();
+    cx.translate(x, y);
+    cx.rotate(sunAngle + PI); // dark hemisphere faces away from Sun
+    // Right half = lit (toward Sun after rotation). Draw dark half on left side.
+    // Terminator ellipse width: sz * |cos(phaseAngle)|
+    // When phaseAngle=0 (full), ellW=sz → terminator is behind lit hemisphere (no dark)
+    // When phaseAngle=PI/2 (quarter), ellW=0 → straight terminator
+    // When phaseAngle=PI (new), ellW=sz → full dark
+    const ellW = Math.max(0.05, sz * Math.abs(cos(p.phaseAngle)));
+    cx.fillStyle = 'rgba(0,0,0,0.90)';
+    cx.beginPath();
+    // Left semicircle (always dark)
+    cx.arc(0, 0, sz, PI/2, -PI/2, false);
+    // Terminator ellipse: convex toward right (lit) when illum>0.5, convex toward left when illum<0.5
+    cx.ellipse(0, 0, ellW, sz, 0, -PI/2, PI/2, p.illum > 0.5);
+    cx.fill();
+    cx.restore();
+  }
+
   if (showLabels && p.alt > 1) { cx.font = '9px Courier New'; cx.fillStyle = `rgba(200,220,240,${ext*.5})`; cx.fillText(p.name, x+sz+6, y-sz-2); }
   return { x, y };
 }
