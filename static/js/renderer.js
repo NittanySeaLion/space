@@ -3,13 +3,13 @@
 // ── Planet metadata ─────────────────────────────────────────────────────────
 const PDEF = [
   { name: 'Sun',     col: [255,245,220], sz: 10, cr: 0,  isSun: true },
-  { name: 'Mercury', col: [185,170,150], sz: 3,  cr: 0 },
-  { name: 'Venus',   col: [255,210,160], sz: 5,  cr: 10 },
-  { name: 'Mars',    col: [230,100,60],  sz: 4,  cr: 7 },
-  { name: 'Jupiter', col: [255,200,130], sz: 7,  cr: 18 },
-  { name: 'Saturn',  col: [228,208,168], sz: 6,  cr: 14 },
-  { name: 'Uranus',  col: [155,225,235], sz: 4,  cr: 8 },
-  { name: 'Neptune', col: [100,145,255], sz: 4,  cr: 8 },
+  { name: 'Mercury', col: [185,170,150], sz: 2,  cr: 0 },
+  { name: 'Venus',   col: [255,210,160], sz: 3,  cr: 3 },
+  { name: 'Mars',    col: [230,100,60],  sz: 2,  cr: 2 },
+  { name: 'Jupiter', col: [255,200,130], sz: 4,  cr: 5 },
+  { name: 'Saturn',  col: [228,208,168], sz: 3,  cr: 4 },
+  { name: 'Uranus',  col: [155,225,235], sz: 2,  cr: 2 },
+  { name: 'Neptune', col: [100,145,255], sz: 2,  cr: 2 },
   { name: 'Earth',   col: [80,150,255],  sz: 0,  cr: 0, isEarth: true },
 ];
 
@@ -198,7 +198,7 @@ function drawPlanet(p) {
   const ext = Math.min(1, Math.max(0, (p.alt + 0.5) / 1.5));
   const [r, g, b] = p.col, sz = p.sz;
   if (p.cr > 0) {
-    const cg = rg(x, y, 0, sz+p.cr, [[0,`rgba(${r},${g},${b},${ext})`],[.3,`rgba(${r},${g},${b},${ext*.4})`],[.7,`rgba(${r},${g},${b},${ext*.08})`],[1,`rgba(${r},${g},${b},0)`]]);
+    const cg = rg(x, y, 0, sz+p.cr, [[0,`rgba(${r},${g},${b},${ext*.5})`],[.3,`rgba(${r},${g},${b},${ext*.15})`],[1,`rgba(${r},${g},${b},0)`]]);
     cx.beginPath(); cx.arc(x, y, sz+p.cr, 0, TAU); cx.fillStyle = cg; cx.fill();
   }
   const dg = rg(x, y, 0, sz, [[0,'rgba(255,255,255,1)'],[.4,`rgba(${r},${g},${b},${ext})`],[1,`rgba(${Math.max(0,r-50)},${Math.max(0,g-50)},${Math.max(0,b-50)},${ext})`]]);
