@@ -183,8 +183,9 @@ function initTooltip(cv, getBodies) {
       tt.style.display = 'block';
       tt.style.left = (e.clientX + 18) + 'px';
       tt.style.top = (e.clientY - 8) + 'px';
-      const extra = hit.isEarth ? `<br>PHASE  ${(hit.phase*100).toFixed(0)}% LIT` : (hit.dist ? `<br>${hit.dist.toFixed(4)} AU` : '');
+      const extra = hit.isEarth ? `<br>PHASE  ${Math.round(earthIllumination(hit.phase)*100)}% LIT` : (hit.dist ? `<br>${hit.dist.toFixed(4)} AU` : '');
       tt.innerHTML = `<div class="ttn">${hit.name || '\u2013'}</div>ALT  ${hit.alt.toFixed(2)}\u00b0<br>AZ   ${hit.az.toFixed(2)}\u00b0<br>RA   ${hit.ra.toFixed(3)}\u00b0<br>DEC  ${hit.dec.toFixed(3)}\u00b0` + (hit.mag != null ? `<br>MAG  ${hit.mag.toFixed(2)}` : '') + extra;
+
     } else {
       tt.style.display = 'none';
     }
@@ -247,5 +248,14 @@ function initFullscreen() {
       clearTimeout(panTimeout);
       snapBack();
     }
+    // Arrow key pan (10% of current FOV per keypress)
+    const panStep = HFOV * R2D * 0.1;
+    if (e.key === 'ArrowLeft')  { viewAz = ((viewAz - panStep) % 360 + 360) % 360; startUserPan(); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { viewAz = ((viewAz + panStep) % 360 + 360) % 360; startUserPan(); e.preventDefault(); }
+    if (e.key === 'ArrowUp')    { viewAlt = Math.min(88, viewAlt + panStep);         startUserPan(); e.preventDefault(); }
+    if (e.key === 'ArrowDown')  { viewAlt = Math.max(-10, viewAlt - panStep);        startUserPan(); e.preventDefault(); }
+    // +/- zoom
+    if (e.key === '+' || e.key === '=') { HFOV = Math.max(HFOV_MIN, HFOV * 0.9); startUserPan(); e.preventDefault(); }
+    if (e.key === '-')                  { HFOV = Math.min(HFOV_MAX, HFOV * 1.1); startUserPan(); e.preventDefault(); }
   });
 }
