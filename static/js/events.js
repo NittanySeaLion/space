@@ -3,11 +3,9 @@
 // ── Lunar events panel ──────────────────────────────────────────────────────
 
 function sunAltitude(jd) {
-  const pf = moonPhaseFrac(jd);
-  const ssl = n360(pf * 360 - 180);
-  const dlon = (OBS.lon - ssl) * D2R;
-  const sinAlt = cos(OBS.lat * D2R) * cos(dlon);
-  return asin(Math.max(-1, Math.min(1, sinAlt))) * R2D;
+  const lst = lunarLST(jd, OBS.lon);
+  const sun = sunPos(jd);
+  return altaz(sun.ra, sun.dec, OBS.lat, lst).alt;
 }
 
 function nextSunEvent(jd, rising) {
