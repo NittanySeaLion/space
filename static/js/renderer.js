@@ -157,7 +157,7 @@ function drawEarth(x, y, alt, az, phase) {
   const startA = PI/2, endA = -PI/2;
   cx.arc(x, y, r, startA, endA);
   const ellW = r * abs(cos(phaseAngle));
-  cx.ellipse(x, y, ellW < 1 ? 1 : ellW, r, 0, endA, startA, phase < .5 ? false : true);
+  cx.ellipse(x, y, ellW < 1 ? 1 : ellW, r, 0, endA, startA, phase < .5);
   cx.fill();
 
   cx.restore();
