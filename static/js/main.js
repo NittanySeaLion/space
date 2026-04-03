@@ -123,11 +123,14 @@ function render(ts) {
     const baseA = Math.min(1, Math.max(0, (7.0 - s.mag) / 6.0)) * ext;
     drawStar(x, y, Math.max(.4, 3.2 - s.mag * .52), bv2rgb(s.bv), Math.min(1, baseA * 1.2));
     if (showLabels && s.name && s.mag < 3.5) {
-      const labelA = Math.max(0, Math.min(0.65, (4.5 - s.mag) / 5.0)) * ext;
-      if (labelA > 0.05) {
+      const labelA = Math.max(0, Math.min(0.85, (4.5 - s.mag) / 3.5)) * ext;
+      if (labelA > 0.08) {
         cx.font = s.mag < 1.5 ? '9px Courier New' : '8px Courier New';
-        cx.fillStyle = `rgba(170,195,230,${labelA.toFixed(2)})`;
+        cx.shadowColor = 'rgba(0,0,0,0.9)';
+        cx.shadowBlur = 3;
+        cx.fillStyle = `rgba(180,205,240,${labelA.toFixed(2)})`;
         cx.fillText(s.name, x + 6, y - 5);
+        cx.shadowBlur = 0;
       }
     }
   }
