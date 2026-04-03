@@ -122,10 +122,13 @@ function render(ts) {
     const ext = Math.min(1, Math.max(0, (aa.alt + 0.2) / 0.8));
     const baseA = Math.min(1, Math.max(0, (7.0 - s.mag) / 6.0)) * ext;
     drawStar(x, y, Math.max(.4, 3.2 - s.mag * .52), bv2rgb(s.bv), Math.min(1, baseA * 1.2));
-    if (showLabels && s.name && s.mag < 2.5) {
-      cx.font = '8px Courier New';
-      cx.fillStyle = `rgba(170,195,230,${Math.min(.55, baseA * .5)})`;
-      cx.fillText(s.name, x + 6, y - 5);
+    if (showLabels && s.name && s.mag < 3.5) {
+      const labelA = Math.max(0, Math.min(0.65, (4.5 - s.mag) / 5.0)) * ext;
+      if (labelA > 0.05) {
+        cx.font = s.mag < 1.5 ? '9px Courier New' : '8px Courier New';
+        cx.fillStyle = `rgba(170,195,230,${labelA.toFixed(2)})`;
+        cx.fillText(s.name, x + 6, y - 5);
+      }
     }
   }
 
