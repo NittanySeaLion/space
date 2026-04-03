@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lunar Sky</string>
+    <string name="settings_title">Lunar Sky — Screensaver Settings</string>
+    <string name="location_label">Lunar location</string>
+    <string name="location_hint">The screensaver activates when your phone is charging and the screen times out.</string>
+</resources>

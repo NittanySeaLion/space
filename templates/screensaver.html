@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Lunar Sky</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #000; overflow: hidden; cursor: none; }
+#c { display: block; width: 100vw; height: 100vh; }
+#ov {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+  color: #fff; font-family: monospace; font-size: 11px; letter-spacing: .12em;
+  background: #000; z-index: 10; pointer-events: none;
+}
+#ov .spin {
+  width: 24px; height: 24px; border: 2px solid #333;
+  border-top-color: #fff; border-radius: 50%;
+  animation: sp .8s linear infinite; margin-bottom: 4px;
+}
+@keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="ov">
+  <div class="spin"></div>
+  <div>COMPUTING LUNAR EPHEMERIS</div>
+  <div style="font-size:9px;opacity:.5">VSOP87 &middot; IAU MOON &middot; J2000.0</div>
+</div>
+
+<canvas id="c"></canvas>
+
+<script src="/static/js/constants.js"></script>
+<script src="/static/js/ephemeris.js"></script>
+<script src="/static/js/stars.js"></script>
+<script src="/static/js/milkyway.js"></script>
+<script src="/static/js/events.js"></script>
+<script src="/static/js/renderer.js"></script>
+<script src="/static/js/ui.js"></script>
+<script src="/static/js/main.js"></script>
+</body>
+</html>

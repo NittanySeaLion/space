@@ -1,0 +1,2 @@
+rootProject.name = "LunarSkyDream"
+include ':app'

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Registers the settings gear icon next to "Lunar Sky" in
+    Settings > Display > Screen saver on Samsung / stock Android.
+-->
+<dream xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.litigatech.lunarsky/.DreamSettingsActivity" />

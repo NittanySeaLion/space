@@ -116,6 +116,18 @@ def about():
     return render_template('about.html')
 
 
+@app.route('/screensaver')
+def screensaver():
+    """Minimal canvas-only view for use as an Android DreamService screensaver.
+    Accepts ?loc=orientale|shackleton|tranquility (defaults to shackleton).
+    """
+    from flask import request
+    loc = request.args.get('loc', 'shackleton')
+    if loc not in ('orientale', 'shackleton', 'tranquility'):
+        loc = 'shackleton'
+    return render_template('screensaver.html', loc=loc)
+
+
 @app.route('/api/ephemeris')
 def ephemeris():
     """Return cached planet positions from JPL Horizons."""
