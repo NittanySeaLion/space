@@ -132,7 +132,7 @@ function render(ts) {
   // Bodies
   const sunBody = bodies.find(b => b.isSun);
   bodies.forEach(p => {
-    if (p.isEarth) { const { x, y } = proj(p.alt, p.az); drawEarth(x, y, p.alt, p.az, p.phase); }
+    if (p.isEarth) { const { x, y } = proj(p.alt, p.az); drawEarth(x, y, p.alt, p.az, p.phase, sunBody); }
     else if (p.isSun) { const { x, y } = proj(p.alt, p.az); drawSun(x, y, p.alt, p.az); }
     else drawPlanet(p, sunBody);
   });

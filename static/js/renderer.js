@@ -113,7 +113,7 @@ function fetchEarthImage() {
     .catch(() => { earthImgLoading = false; });
 }
 
-function drawEarth(x, y, alt, az, phase) {
+function drawEarth(x, y, alt, az, phase, sun) {
   if (alt < -2 || !inView(alt, az)) return;
   const r = Math.max(8, 0.95 * pxPerDeg() * 1.6);
 
@@ -150,15 +150,22 @@ function drawEarth(x, y, alt, az, phase) {
     patches.forEach(([ox,oy,w,h]) => { cx.beginPath(); cx.ellipse(x+ox*r, y+oy*r, w*r, h*r, ox*.5, 0, TAU); cx.fill(); });
   }
 
-  // Phase terminator (not rotated — based on Sun-Earth-Moon geometry)
+  // Phase terminator — rotated to face Sun (same pattern as planet terminator)
   const phaseAngle = phase * TAU;
+  const earthIllum = earthIllumination(phase);
+  cx.save();
+  cx.translate(x, y);
+  if (sun) {
+    const sp = proj(sun.alt, sun.az);
+    cx.rotate(atan2(sp.y - y, sp.x - x) + PI);
+  }
+  const ellW = Math.max(1, r * abs(cos(phaseAngle)));
   cx.fillStyle = 'rgba(0,0,0,.82)';
   cx.beginPath();
-  const startA = PI/2, endA = -PI/2;
-  cx.arc(x, y, r, startA, endA);
-  const ellW = r * abs(cos(phaseAngle));
-  cx.ellipse(x, y, ellW < 1 ? 1 : ellW, r, 0, endA, startA, phase < .5);
+  cx.arc(0, 0, r, PI/2, -PI/2, false);
+  cx.ellipse(0, 0, ellW, r, 0, -PI/2, PI/2, earthIllum > 0.5);
   cx.fill();
+  cx.restore();
 
   cx.restore();
 
